@@ -1,0 +1,52 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "invoice.iso20022.v1",
+  "type": "object",
+  "properties": {
+    "Document": {
+      "type": "object",
+      "properties": {
+        "Invoice": {
+          "type": "object",
+          "properties": {
+            "Id": {
+              "type": "string"
+            },
+            "TotalMinor": {
+              "type": "integer"
+            },
+            "Currency": {
+              "type": "string"
+            },
+            "Party": {
+              "type": "object",
+              "properties": {
+                "Name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "Name"
+              ]
+            },
+            "Note": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "Id",
+            "TotalMinor",
+            "Currency",
+            "Party"
+          ]
+        }
+      },
+      "required": [
+        "Invoice"
+      ]
+    }
+  },
+  "required": [
+    "Document"
+  ]
+}

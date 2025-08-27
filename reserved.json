@@ -1,0 +1,52 @@
+{
+  "acme": {
+    "vex_reserved": 10000,
+    "fu_reserved": 50000,
+    "vex_overage_tiers": [
+      {
+        "threshold": 5000,
+        "price_per_unit": 0.01,
+        "stripe_item": "si_acme_vex_tier1"
+      },
+      {
+        "threshold": 10000,
+        "price_per_unit": 0.008,
+        "stripe_item": "si_acme_vex_tier2"
+      }
+    ],
+    "fu_overage_tiers": [
+      {
+        "threshold": 25000,
+        "price_per_unit": 0.001,
+        "stripe_item": "si_acme_fu_tier1"
+      },
+      {
+        "threshold": 50000,
+        "price_per_unit": 0.0008,
+        "stripe_item": "si_acme_fu_tier2"
+      }
+    ],
+    "vex_reserved_item": "si_acme_vex_reserved",
+    "fu_reserved_item": "si_acme_fu_reserved"
+  },
+  "enterprise_customer": {
+    "vex_reserved": 100000,
+    "fu_reserved": 500000,
+    "vex_overage_tiers": [
+      {
+        "threshold": 50000,
+        "price_per_unit": 0.005,
+        "stripe_item": "si_enterprise_vex_tier1"
+      }
+    ],
+    "fu_overage_tiers": [
+      {
+        "threshold": 250000,
+        "price_per_unit": 0.0005,
+        "stripe_item": "si_enterprise_fu_tier1"
+      }
+    ],
+    "vex_reserved_item": "si_enterprise_vex_reserved",
+    "fu_reserved_item": "si_enterprise_fu_reserved"
+  }
+}
