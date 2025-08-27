@@ -91,6 +91,81 @@ def export_chain(trace_id: str, response: Response):
         response.headers["X-ODIN-KID"] = signed["kid"]
     return bundle
 
+# MCP-Enhanced Billing Endpoints
+@app.post("/v1/billing/setup-products")
+async def setup_stripe_products(
+    x_signet_api_key: Optional[str] = Header(None, alias="X-SIGNET-API-Key")
+):
+    """Set up Stripe products and pricing using MCP"""
+    if not x_signet_api_key:
+        raise HTTPException(status_code=401, detail="missing api key header")
+    
+    tenant_cfg = SET.api_keys.get(x_signet_api_key)
+    if not tenant_cfg:
+        raise HTTPException(status_code=401, detail="invalid api key")
+    
+    from .pipeline.billing_mcp import create_enhanced_billing_buffer
+    BB = create_enhanced_billing_buffer(STORE, SET.stripe_api_key, SET.reserved_config_path)
+    
+    result = await BB.setup_signet_products()
+    return result
+
+@app.post("/v1/billing/create-payment-link/{tenant}")
+async def create_payment_link(
+    tenant: str,
+    plan_type: str = "monthly",
+    x_signet_api_key: Optional[str] = Header(None, alias="X-SIGNET-API-Key")
+):
+    """Create a payment link for a tenant's subscription"""
+    if not x_signet_api_key:
+        raise HTTPException(status_code=401, detail="missing api key header")
+    
+    tenant_cfg = SET.api_keys.get(x_signet_api_key)
+    if not tenant_cfg:
+        raise HTTPException(status_code=401, detail="invalid api key")
+    
+    from .pipeline.billing_mcp import create_enhanced_billing_buffer
+    BB = create_enhanced_billing_buffer(STORE, SET.stripe_api_key, SET.reserved_config_path)
+    
+    result = await BB.create_customer_payment_link(tenant, plan_type)
+    return result
+
+@app.get("/v1/billing/dashboard")
+async def get_billing_dashboard(
+    x_signet_api_key: Optional[str] = Header(None, alias="X-SIGNET-API-Key")
+):
+    """Get comprehensive billing dashboard data"""
+    if not x_signet_api_key:
+        raise HTTPException(status_code=401, detail="missing api key header")
+    
+    tenant_cfg = SET.api_keys.get(x_signet_api_key)
+    if not tenant_cfg:
+        raise HTTPException(status_code=401, detail="invalid api key")
+    
+    from .pipeline.billing_mcp import create_enhanced_billing_buffer
+    BB = create_enhanced_billing_buffer(STORE, SET.stripe_api_key, SET.reserved_config_path)
+    
+    result = await BB.get_billing_dashboard_data()
+    return result
+
+@app.post("/v1/billing/sync-stripe-items")
+async def sync_stripe_items(
+    x_signet_api_key: Optional[str] = Header(None, alias="X-SIGNET-API-Key")
+):
+    """Sync Stripe subscription items with configuration"""
+    if not x_signet_api_key:
+        raise HTTPException(status_code=401, detail="missing api key header")
+    
+    tenant_cfg = SET.api_keys.get(x_signet_api_key)
+    if not tenant_cfg:
+        raise HTTPException(status_code=401, detail="invalid api key")
+    
+    from .pipeline.billing_mcp import create_enhanced_billing_buffer
+    BB = create_enhanced_billing_buffer(STORE, SET.stripe_api_key, SET.reserved_config_path)
+    
+    result = await BB.sync_stripe_items_with_config()
+    return result
+
 @app.post("/v1/exchange")
 def exchange(
     req: Request,
@@ -247,8 +322,8 @@ def exchange(
 
     # Usage & billing (VEx = 1; FU tokens counted)
     STORE.record_usage(api_key, tenant_cfg.tenant, trace_id, hop, True, 1, fu_tokens_used, receipt["ts"])
-    from .pipeline.billing import BillingBuffer
-    BB = BillingBuffer(STORE, SET.stripe_api_key, SET.reserved_config_path)
+    from .pipeline.billing_mcp import create_enhanced_billing_buffer
+    BB = create_enhanced_billing_buffer(STORE, SET.stripe_api_key, SET.reserved_config_path)
     
     # Bill for VEx (Verified Exchange)
     if tenant_cfg.stripe_item_vex:
