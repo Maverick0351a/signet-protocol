@@ -1,0 +1,40 @@
+name: publish-langchain
+
+on:
+  push:
+    tags:
+      - 'signet-langchain-v*.*.*'
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write  # for trusted publishing (if enabled)
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+            python-version: '3.11'
+
+      - name: Build wheel & sdist
+        working-directory: adapters/langchain
+        run: |
+          python -m pip install --upgrade build
+          python -m build
+
+      - name: Publish to PyPI
+        if: startsWith(github.ref_name, 'signet-langchain-v')
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          verbose: true
+          packages-dir: adapters/langchain/dist
+          # For API token authentication set PYPI_API_TOKEN secret; for trusted publishing omit.
+
+      - name: Notes
+        run: |
+          echo "Tag format: signet-langchain-v<version> (e.g. signet-langchain-v0.1.0)"
+          echo "Ensure pyproject.toml version matches tag."

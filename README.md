@@ -16,6 +16,7 @@ The Signet Protocol establishes the **Trust Fabric** - providing cryptographic p
 | JavaScript Verification SDK (`signet-verify-js`) | Published | Package: signet-verify-js (npm) |
 | Python Verification SDK (`signet-verify`) | Published | Package: signet-verify (PyPI) |
 | n8n Community Node (`n8n-nodes-signet-protocol`) | Published | npm: n8n-nodes-signet-protocol |
+| LangChain Adapter (`signet-langchain`) | Packaged | PyPI (tag when ready): signet-langchain |
 
 ### VS Code Extension (Signet Lens)
 Add in‑editor receipt chain verification, CID diffing, bundle export, and interactive chain visualization.

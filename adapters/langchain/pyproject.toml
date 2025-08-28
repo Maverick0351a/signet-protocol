@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "signet-langchain"
+version = "0.1.0"
+description = "LangChain callback & runnable integration for Signet Protocol verified AI-to-AI exchanges"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "Apache-2.0"}
+authors = [
+  {name = "ODIN Protocol Corporation", email = "support@odinprotocol.com"}
+]
+keywords = ["signet", "langchain", "ai", "verification", "receipts", "audit", "trust-fabric"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: Apache Software License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Security",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+]
+dependencies = [
+  "requests>=2.31.0",
+  "langchain>=0.2.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/Maverick0351a/signet-protocol"
+Documentation = "https://github.com/Maverick0351a/signet-protocol/tree/main/docs"
+Source = "https://github.com/Maverick0351a/signet-protocol"
+Issues = "https://github.com/Maverick0351a/signet-protocol/issues"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["signet_langchain*"]
+namespaces = false

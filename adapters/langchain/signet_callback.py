@@ -1,3 +1,23 @@
+"""Compatibility shim.
+
+This file remains to avoid breaking existing imports:
+
+    from signet_callback import SignetCallbackHandler
+
+It forwards to the packaged implementation in `signet_langchain.signet_callback`.
+"""
+
+from signet_langchain.signet_callback import (  # type: ignore F401
+    SignetCallbackHandler,
+    SignetRunnable,
+    enable_signet_verification,
+)
+
+__all__ = [
+    "SignetCallbackHandler",
+    "SignetRunnable",
+    "enable_signet_verification",
+]
 """
 Signet Protocol - LangChain Integration
 One-line callback handler for verified AI-to-AI communications.
