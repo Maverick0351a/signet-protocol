@@ -1,0 +1,74 @@
+{
+  "name": "signet-chat-lens",
+  "displayName": "Signet Chat + Lens",
+  "publisher": "signetprotocol",
+  "version": "0.1.0",
+  "description": "Secure Copilot-style chat and receipt verification lens for Signet Protocol (exchange, receipts, export, billing).",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "icon": "media/icon.png",
+  "categories": ["Other", "AI", "Debuggers"],
+  "activationEvents": [
+    "onCommand:signet.openChat",
+    "onCommand:signet.openLens",
+    "onCommand:signet.configureApi",
+    "onCommand:signet.addAgentDescriptor",
+    "onView:signetChatView"
+  ],
+  "main": "dist/extension.js",
+  "contributes": {
+    "commands": [
+      { "command": "signet.openChat", "title": "Signet: Open Chat" },
+      { "command": "signet.openLens", "title": "Signet: Open Lens" },
+      { "command": "signet.configureApi", "title": "Signet: Configure API & Key" },
+      { "command": "signet.addAgentDescriptor", "title": "Signet: Add Agent Descriptor" }
+    ],
+    "configuration": {
+      "title": "Signet Chat + Lens",
+      "properties": {
+        "signet.apiBase": {
+          "type": "string",
+          "default": "",
+          "description": "Base URL of your Signet server (e.g. https://signet-protocol.fly.dev)"
+        },
+        "signet.tenant": {
+          "type": "string",
+          "default": "",
+          "description": "Tenant/namespace identifier (used for billing & reserved capacity)."
+        },
+        "signet.telemetry": {
+          "type": "boolean",
+          "default": false,
+            "description": "Allow anonymous telemetry for feature usage (never sends receipt content)."
+        }
+      }
+    },
+    "viewsContainers": {
+      "activitybar": [
+        { "id": "signet", "title": "Signet", "icon": "media/icon.png" }
+      ]
+    },
+    "views": {
+      "signet": [
+        { "id": "signetChatView", "name": "Signet Chat", "icon": "media/icon.png" }
+      ]
+    }
+  },
+  "scripts": {
+    "compile": "esbuild src/extension.ts --bundle --platform=node --format=cjs --outfile=dist/extension.js",
+    "watch": "esbuild src/extension.ts --bundle --platform=node --format=cjs --outfile=dist/extension.js --watch",
+    "package": "vsce package"
+  },
+  "dependencies": {
+    "undici": "^6.19.6"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3",
+    "@types/node": "^20.11.10",
+    "@types/vscode": "^1.85.0",
+    "vsce": "^3.0.0",
+    "esbuild": "^0.23.0"
+  },
+  "license": "Apache-2.0"
+}
