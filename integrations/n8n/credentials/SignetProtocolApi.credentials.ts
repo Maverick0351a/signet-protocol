@@ -9,7 +9,7 @@ export class SignetProtocolApi implements ICredentialType {
 			name: 'signetUrl',
 			type: 'string',
 			default: 'http://localhost:8088',
-			description: 'Base URL of your Signet Protocol server',
+			description: 'Base URL of your Signet Protocol server (e.g. http://localhost:8088 for local dev or https://signet-protocol.fly.dev for hosted)',
 		},
 		{
 			displayName: 'API Key',

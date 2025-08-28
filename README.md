@@ -201,6 +201,35 @@ curl http://localhost:8088/healthz
 # {"ok":true,"storage":"sqlite","ts":"2025-01-27T21:59:41Z"}
 ```
 
+## ☁️ Hosted Instance (Fly.io)
+
+You can point clients or the n8n node at the deployed instance:
+
+Base URL: `https://signet-protocol.fly.dev`
+
+Key Endpoints:
+```text
+Health:   https://signet-protocol.fly.dev/healthz
+API Docs: https://signet-protocol.fly.dev/docs
+JWKS:     https://signet-protocol.fly.dev/.well-known/jwks.json
+Metrics:  https://signet-protocol.fly.dev/metrics (if exposed)
+```
+
+Example exchange request (replace YOUR_KEY):
+```bash
+curl -X POST https://signet-protocol.fly.dev/v1/exchange \
+  -H "X-SIGNET-API-Key: YOUR_KEY" \
+  -H "X-SIGNET-Idempotency-Key: unique-key-123" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "payload_type": "openai.tooluse.invoice.v1",
+    "target_type": "invoice.iso20022.v1",
+    "payload": {"tool_calls": []}
+  }'
+```
+
+For n8n, set the credential "Signet URL" to `https://signet-protocol.fly.dev`.
+
 ## 📚 Documentation
 
 ### Specifications
