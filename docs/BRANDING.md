@@ -72,9 +72,11 @@ Logo and brand assets © ODIN Protocol Corporation. Distributed under the projec
 ## Checklist (Status)
 
 - [x] Primary dark logo PNG
-- [ ] Light-mode PNG
-- [ ] 128x128 extension icon
-- [ ] Favicon set (16/32/SVG)
-- [ ] Social card
+- [ ] Light-mode PNG (generated placeholder if script run without custom source)
+- [ ] 128x128 extension icon (script outputs to vscode-extension/icon.png)
+- [ ] Favicon set (16/32/SVG) (script produces 16/32 PNGs)
+- [ ] Social card (script creates placeholder social-card.png)
+
+Run `./scripts/prepare_branding_assets.sh` to generate provisional assets.
 
 Once these items are complete, remove unchecked placeholders and update this checklist.

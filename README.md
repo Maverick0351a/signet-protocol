@@ -1,7 +1,7 @@
 # <div align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="./assets/LogoSignet.png">
-    <source media="(prefers-color-scheme: light)" srcset="./assets/LogoSignet.png">
+    <source media="(prefers-color-scheme: light)" srcset="./assets/LogoSignet-light.png, ./assets/LogoSignet.png 2x">
     <img src="./assets/LogoSignet.png" alt="Signet Protocol Logo" width="420" />
   </picture>
 </div>
@@ -517,6 +517,14 @@ Software is provided "AS IS" without warranties; evaluate security & compliance 
 - **API Docs**: http://localhost:8088/docs (when server running)
 - **Metrics**: http://localhost:8088/metrics
 - **Health**: http://localhost:8088/healthz
+
+<!-- OpenGraph / Social preview (add assets/social-card.png when created) -->
+<!-- Suggested meta snippet for future docs site or GitHub Pages build:
+<meta property="og:title" content="Signet Protocol" />
+<meta property="og:description" content="Trust Fabric for AI-to-AI Communications: verified exchanges, signed receipts, billing & observability." />
+<meta property="og:image" content="https://raw.githubusercontent.com/Maverick0351a/signet-protocol/main/assets/social-card.png" />
+<meta name="twitter:card" content="summary_large_image" />
+-->
 
 ---
 
