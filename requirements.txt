@@ -12,6 +12,6 @@ idna==3.7  # Safe to leave; 3.10 available but not required
 openai==0.28.0  # Legacy SDK pinned; TODO: migrate to >=1.x new API surface
 opentelemetry-api==1.25.0  # Pinned; coordinated OTEL stack upgrade deferred
 opentelemetry-sdk==1.25.0
-opentelemetry-instrumentation-fastapi==0.46b0
+opentelemetry-instrumentation-fastapi==0.57b0
 opentelemetry-instrumentation-requests==0.46b0
 opentelemetry-exporter-otlp==1.25.0
