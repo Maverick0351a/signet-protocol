@@ -1,0 +1,42 @@
+groups:
+  - name: signet_recording
+    interval: 30s
+    rules:
+      - record: job:signet_exchange_total_latency_seconds:p95
+        expr: histogram_quantile(0.95, sum by (le)(rate(signet_exchange_total_latency_seconds_bucket[5m])))
+      - record: job:signet_exchange_total_latency_seconds:p99
+        expr: histogram_quantile(0.99, sum by (le)(rate(signet_exchange_total_latency_seconds_bucket[5m])))
+      - record: job:signet_exchange_phase_latency_seconds:p95
+        expr: histogram_quantile(0.95, sum by (le,phase)(rate(signet_exchange_phase_latency_seconds_bucket[5m])))
+      - record: job:signet_exchange_phase_latency_seconds:p99
+        expr: histogram_quantile(0.99, sum by (le,phase)(rate(signet_exchange_phase_latency_seconds_bucket[5m])))
+      - record: job:signet_denied_total:rate5m
+        expr: sum(rate(signet_denied_total[5m]))
+
+  - name: signet_alerts
+    interval: 30s
+    rules:
+      - alert: HighTotalLatencyP99
+        expr: job:signet_exchange_total_latency_seconds:p99 > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High p99 total exchange latency"
+          description: "p99 total latency above 2s for 5m (value={{ $value }})"
+      - alert: HighDeniedRate
+        expr: job:signet_denied_total:rate5m > 5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Denied exchanges rate high"
+          description: "Denied exchanges >5/min sustained 10m"
+      - alert: FallbackUsageSpike
+        expr: increase(signet_fallback_used_total[5m]) > 50
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Fallback usage spike"
+          description: "More than 50 fallbacks in 5m window"

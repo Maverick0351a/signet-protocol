@@ -190,6 +190,18 @@ Service container sets `OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318/v
 
 To add Jaeger UI, uncomment the `jaeger` service block in `docker-compose.yml` and browse to `http://localhost:16686`.
 
+### Prometheus Recording & Alerts
+
+Recording rules & alerts are defined in `monitoring/rules/signet_rules.yml` and loaded via `monitoring/prometheus.yml`. They provide precomputed p95/p99 quantiles and trigger alerts on:
+- High p99 total latency (>2s for 5m)
+- Elevated denied rate (>5/min for 10m)
+- Fallback usage spike (>50 in 5m)
+
+Regenerate metrics docs after metric changes:
+```powershell
+python scripts/generate_metrics_doc.py > docs/METRICS.md
+```
+
 Set up webhooks to receive forwarded exchanges:
 
 ```javascript
