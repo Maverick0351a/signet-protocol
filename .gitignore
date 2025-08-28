@@ -105,6 +105,21 @@ node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+package-lock.json
+
+# Build / distribution artifacts (extension, generated bundles)
+vscode-extension/*.vsix
+vscode-extension/out/
+
+# n8n integration build & test artifacts
+integrations/n8n/dist/
+integrations/n8n/package-lock.json
+integrations/n8n/ruff_*.txt
+integrations/n8n/credentials/assets
+integrations/n8n/test/
+
+# Generated temporary docs
+_tmp_metrics.md
 
 # Docker
 .dockerignore
