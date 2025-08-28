@@ -67,12 +67,31 @@ export async function signetApiRequest(
 		delete options.qs;
 	}
 
-	try {
-		const response = await this.helpers.httpRequestWithAuthentication.call(this, 'signetProtocolApi', options);
-		return option.returnFullResponse ? response : (response?.data ?? response);
-	} catch (error) {
-		// Wrap with NodeApiError for rich n8n UI error display. Cast to any for JsonObject compliance.
-		throw new NodeApiError(this.getNode(), error as any, { message: 'Signet API request failed' });
+	// Retry / backoff settings (can be overridden via option)
+	const maxRetries: number = option.maxRetries ?? 3;
+	const baseDelayMs: number = option.baseDelayMs ?? 500;
+	const maxDelayMs: number = option.maxDelayMs ?? 4000;
+	const retryOnStatuses: number[] = option.retryOnStatuses ?? [429, 502, 503, 504];
+	const safeRetryMethods = new Set(['GET', 'HEAD', 'OPTIONS']);
+
+	let attempt = 0;
+	while (true) {
+		try {
+			const response = await this.helpers.httpRequestWithAuthentication.call(this, 'signetProtocolApi', options);
+			return option.returnFullResponse ? response : (response?.data ?? response);
+		} catch (error: any) {
+			const status = error?.httpCode || error?.statusCode || error?.cause?.statusCode;
+			const isRetryable = status && retryOnStatuses.includes(Number(status));
+			const allowRetry = attempt < maxRetries && isRetryable && safeRetryMethods.has(options.method as string);
+			if (!allowRetry) {
+				throw new NodeApiError(this.getNode(), error as any, { message: 'Signet API request failed', description: `attempt=${attempt+1}` });
+			}
+			// Exponential backoff with jitter
+			const delay = Math.min(maxDelayMs, baseDelayMs * Math.pow(2, attempt));
+			const jitter = Math.random() * (delay * 0.2);
+			await new Promise(res => setTimeout(res, delay + jitter));
+			attempt += 1;
+		}
 	}
 }
 
