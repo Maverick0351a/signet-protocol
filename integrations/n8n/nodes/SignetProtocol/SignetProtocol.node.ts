@@ -59,6 +59,18 @@ export class SignetProtocol implements INodeType {
 						description: 'Get billing dashboard information',
 						action: 'Get billing dashboard',
 					},
+					{
+						name: 'Reload Reserved Capacity',
+						value: 'reloadReserved',
+						description: 'Reload reserved capacity configuration from server',
+						action: 'Reload reserved capacity',
+					},
+					{
+						name: 'Create Payment Link',
+						value: 'createPaymentLink',
+						description: 'Create a Stripe payment link for a tenant subscription',
+						action: 'Create payment link',
+					},
 				],
 				default: 'createExchange',
 			},
@@ -137,6 +149,33 @@ export class SignetProtocol implements INodeType {
 					show: {
 						operation: ['getReceiptChain', 'exportChain'],
 					},
+				},
+			},
+
+			// Create Payment Link fields
+			{
+				displayName: 'Tenant',
+				name: 'tenant',
+				type: 'string',
+				default: '',
+				required: true,
+				description: 'Tenant identifier for the subscription',
+				displayOptions: {
+					show: { operation: ['createPaymentLink'] },
+				},
+			},
+			{
+				displayName: 'Plan Type',
+				name: 'planType',
+				type: 'options',
+				options: [
+					{ name: 'Monthly', value: 'monthly' },
+					{ name: 'Annual', value: 'annual' },
+				],
+				default: 'monthly',
+				description: 'Subscription plan type',
+				displayOptions: {
+					show: { operation: ['createPaymentLink'] },
 				},
 			},
 		],
@@ -251,6 +290,25 @@ export class SignetProtocol implements INodeType {
 						...responseData,
 					};
 
+				} else if (operation === 'reloadReserved') {
+					// Reload reserved capacity configuration
+					responseData = await signetApiRequest.call(
+						this,
+						'POST',
+						'/v1/admin/reload-reserved',
+					);
+					responseData = { operation: 'reloadReserved', ...responseData };
+
+				} else if (operation === 'createPaymentLink') {
+					const tenant = this.getNodeParameter('tenant', i) as string;
+					const planType = this.getNodeParameter('planType', i) as string;
+					responseData = await signetApiRequest.call(
+						this,
+						'POST',
+						`/v1/billing/create-payment-link/${tenant}?plan_type=${encodeURIComponent(planType)}`,
+					);
+					responseData = { operation: 'createPaymentLink', tenant, plan_type: planType, ...responseData };
+
 				} else {
 					throw new NodeOperationError(
 						this.getNode(),
@@ -270,7 +328,7 @@ export class SignetProtocol implements INodeType {
 				if (this.continueOnFail()) {
 					returnData.push({
 						json: {
-							error: error.message,
+							error: (error as any).message || 'Unknown error',
 							operation,
 						},
 						pairedItem: {
