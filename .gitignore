@@ -124,3 +124,6 @@ debug_server.py
 test_billing_direct.py
 test_billing_integration.py
 test_server_config.py
+setup_stripe_products.js
+stripe_mcp_demo.js
+test_stripe_mcp.js
