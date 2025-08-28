@@ -28,7 +28,22 @@ from .pipeline.policy import hel_allow_forward
 from .pipeline.forward import safe_forward
 from .pipeline.storage import StorageConflict
 from .pipeline.receipts import make_receipt
-from .pipeline.metrics import exchanges_total, denied_total, forward_total, repair_attempts_total, fallback_used_total, latency_hist
+from .pipeline.metrics import (
+    exchanges_total,
+    denied_total,
+    forward_total,
+    idempotent_hits_total,
+    repair_attempts_total,
+    repair_success_total,
+    fallback_used_total,
+    semantic_violation_total,
+    vex_units_total,
+    fu_tokens_total,
+    billing_enqueue_total,
+    latency_total_hist,
+    phase_latency_hist,
+)
+from .utils.tracing import init_tracer, phase
 from .utils.jcs import cid_for_json, canonicalize
 from .utils.crypto import load_signing_key, make_jwk_from_signing_key, sign_export_bundle
 from fastjsonschema import compile as compile_schema
@@ -43,6 +58,7 @@ app.add_middleware(
 )
 
 SET = load_settings()
+init_tracer()
 STORE = create_storage_from_settings(SET)
 
 # Signing
@@ -203,12 +219,15 @@ def exchange(
         raise HTTPException(status_code=401, detail="invalid api key")
 
     # Idempotency
-    cached = STORE.get_idempotent(api_key, idem_key)
-    if cached:
-        return JSONResponse(cached, headers={"X-SIGNET-Idempotency-Hit": "1"})
+    with phase("idempotency"):
+        cached = STORE.get_idempotent(api_key, idem_key)
+        if cached:
+            idempotent_hits_total.inc()
+            return JSONResponse(cached, headers={"X-SIGNET-Idempotency-Hit": "1"})
 
     # Sanitize
-    body = sanitize_payload(body)
+    with phase("sanitize"):
+        body = sanitize_payload(body)
 
     # Basic fields
     trace_id = body.get("trace_id") or str(uuid.uuid4())
@@ -223,10 +242,11 @@ def exchange(
     # Validate input schema (invoice demo map)
     if payload_type != "openai.tooluse.invoice.v1" or target_type != "invoice.iso20022.v1":
         raise HTTPException(status_code=422, detail="unsupported mapping in MVP")
-    try:
-        validate_from(payload)
-    except Exception as e:
-        raise HTTPException(status_code=422, detail=f"input schema invalid: {str(e)[:200]}")
+    with phase("validate_input"):
+        try:
+            validate_from(payload)
+        except Exception as e:
+            raise HTTPException(status_code=422, detail=f"input schema invalid: {str(e)[:200]}")
 
     # Parse embedded arguments JSON with heuristics, fallback optional
     fu_tokens_used = 0
@@ -237,10 +257,13 @@ def exchange(
         args_str = payload["tool_calls"][0]["function"]["arguments"]
         repair_attempts_total.inc()
         args_obj = None
-        try:
-            args_obj = repair_json_string(args_str)
-        except Exception:
-            args_obj = None
+        with phase("attempt_repair"):
+            try:
+                args_obj = repair_json_string(args_str)
+                if args_obj is not None:
+                    repair_success_total.inc()
+            except Exception:
+                args_obj = None
         
         if args_obj is None and tenant_cfg.fallback_enabled:
             try:
@@ -254,7 +277,8 @@ def exchange(
                     raise HTTPException(status_code=429, detail=f"Fallback quota exceeded: {quota_reason}")
                 
                 # Perform repair with token tracking
-                repair_result = fb.repair_with_tokens(args_str, {"type":"object"})
+                with phase("fallback_repair"):
+                    repair_result = fb.repair_with_tokens(args_str, {"type":"object"})
                 if repair_result.success and repair_result.repaired_text:
                     # Validate semantic invariants
                     from .pipeline.semantic_invariants import validate_fallback_result
@@ -268,6 +292,7 @@ def exchange(
                     if not is_valid:
                         # Semantic invariants failed - deny the exchange
                         semantic_violations = [v.message for v in violations]
+                        semantic_violation_total.inc()
                         raise HTTPException(
                             status_code=422, 
                             detail=f"Fallback repair violated semantic invariants: {'; '.join(error_messages[:3])}"
@@ -294,30 +319,35 @@ def exchange(
         raise HTTPException(status_code=422, detail=f"arguments parse/repair failed: {str(e)[:200]}")
 
     # Transform
-    normalized = transform(payload, MAP_INV)
+    with phase("transform"):
+        normalized = transform(payload, MAP_INV)
 
     # Validate target schema
-    try:
-        validate_to(normalized)
-    except Exception as e:
-        raise HTTPException(status_code=422, detail=f"normalized schema invalid: {str(e)[:200]}")
+    with phase("validate_output"):
+        try:
+            validate_to(normalized)
+        except Exception as e:
+            raise HTTPException(status_code=422, detail=f"normalized schema invalid: {str(e)[:200]}")
 
     # Policy
     tenant_allow = tenant_cfg.allowlist or []
-    policy = hel_allow_forward(tenant_allow, SET.hel_allowlist, forward_url)
-    if not policy.allowed:
-        denied_total.labels(reason=str(policy.get("reason"))).inc()
-        raise HTTPException(status_code=403, detail=policy.get("reason"))
+    with phase("policy"):
+        policy = hel_allow_forward(tenant_allow, SET.hel_allowlist, forward_url)
+        if not policy.allowed:
+            denied_total.labels(reason=str(policy.get("reason"))).inc()
+            raise HTTPException(status_code=403, detail=policy.get("reason"))
 
     # Optional forward
     forwarded = None
     if forward_url:
-        forwarded = safe_forward(forward_url, normalized)
-        if forwarded.get("status_code", 599) < 600:
-            forward_total.labels(host=forwarded.get("host","")).inc()
+        with phase("forward"):
+            forwarded = safe_forward(forward_url, normalized)
+            if forwarded.get("status_code", 599) < 600:
+                forward_total.labels(host=forwarded.get("host","")) .inc()
 
     # Receipts
-    cid = cid_for_json(normalized)
+    with phase("cid"):
+        cid = cid_for_json(normalized)
     head = STORE.get_head(trace_id)
     prev_hash = head["last_receipt_hash"] if head else None
     receipt = make_receipt(trace_id, hop=(head["last_hop"]+1 if head else 1), tenant=tenant_cfg.tenant, cid=cid, policy=dict(policy), prev_receipt_hash=prev_hash)
@@ -329,23 +359,32 @@ def exchange(
     if semantic_violations:
         receipt["semantic_violations"] = semantic_violations
 
-    try:
-        hop = STORE.append_receipt(receipt, expected_prev=prev_hash)
-    except StorageConflict:
-        raise HTTPException(status_code=409, detail="chain conflict")
+    with phase("append_receipt"):
+        try:
+            hop = STORE.append_receipt(receipt, expected_prev=prev_hash)
+        except StorageConflict:
+            raise HTTPException(status_code=409, detail="chain conflict")
 
     # Usage & billing (VEx = 1; FU tokens counted)
-    STORE.record_usage(api_key, tenant_cfg.tenant, trace_id, hop, True, 1, fu_tokens_used, receipt["ts"])
+    with phase("record_usage"):
+        STORE.record_usage(api_key, tenant_cfg.tenant, trace_id, hop, True, 1, fu_tokens_used, receipt["ts"])
+        vex_units_total.inc()
+        if fu_tokens_used:
+            fu_tokens_total.inc(fu_tokens_used)
     from .pipeline.billing_mcp import create_enhanced_billing_buffer
     BB = create_enhanced_billing_buffer(STORE, SET.stripe_api_key, SET.reserved_config_path)
     
     # Bill for VEx (Verified Exchange)
     if tenant_cfg.stripe_item_vex:
-        BB.enqueue_vex(api_key, tenant_cfg.stripe_item_vex, units=1, tenant=tenant_cfg.tenant)
+        with phase("billing_enqueue_vex"):
+            BB.enqueue_vex(api_key, tenant_cfg.stripe_item_vex, units=1, tenant=tenant_cfg.tenant)
+            billing_enqueue_total.labels(type="vex").inc()
     
     # Bill for FU (Fallback Units) if used
     if fu_tokens_used > 0 and tenant_cfg.stripe_item_fu:
-        BB.enqueue_fu(api_key, tenant_cfg.stripe_item_fu, fu_tokens_used, tenant=tenant_cfg.tenant)
+        with phase("billing_enqueue_fu"):
+            BB.enqueue_fu(api_key, tenant_cfg.stripe_item_fu, fu_tokens_used, tenant=tenant_cfg.tenant)
+            billing_enqueue_total.labels(type="fu").inc()
 
     resp = {
         "trace_id": trace_id,
@@ -363,9 +402,12 @@ def exchange(
         resp["forwarded"] = forwarded
 
     # Cache idempotent
-    STORE.cache_idempotent(api_key, idem_key, resp)
+    with phase("cache"):
+        STORE.cache_idempotent(api_key, idem_key, resp)
 
     exchanges_total.inc()
-    latency_hist.labels(phase="total").observe(time.time() - t0)
+    total_latency = time.time() - t0
+    latency_total_hist.observe(total_latency)
+    phase_latency_hist.labels(phase="total").observe(total_latency)
     headers = {"X-SIGNET-Trace": trace_id, "X-ODIN-Trace": trace_id}
     return JSONResponse(resp, headers=headers)
