@@ -1,0 +1,30 @@
+name: n8n Node CI
+
+on:
+  push:
+    paths:
+      - 'integrations/n8n/**'
+  pull_request:
+    paths:
+      - 'integrations/n8n/**'
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: integrations/n8n/package-lock.json
+      - name: Install
+        working-directory: integrations/n8n
+        run: |
+          npm ci || npm install
+      - name: Build
+        working-directory: integrations/n8n
+        run: npm run build
+      - name: Test
+        working-directory: integrations/n8n
+        run: npm test

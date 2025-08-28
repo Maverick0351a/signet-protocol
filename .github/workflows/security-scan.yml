@@ -1,0 +1,36 @@
+name: Security Scans
+
+on:
+  schedule:
+    - cron: '0 5 * * 1'  # Weekly Monday 05:00 UTC
+  workflow_dispatch: {}
+
+jobs:
+  pip-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install pip-audit
+        run: |
+          pip install pip-audit
+      - name: Run audit
+        run: |
+          pip-audit -r requirements.txt || true
+  npm-audit-n8n:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install deps
+        working-directory: integrations/n8n
+        run: |
+          npm install --no-audit --no-fund
+      - name: NPM audit (advisory only)
+        working-directory: integrations/n8n
+        run: |
+          npm audit --omit=dev || true
