@@ -1,6 +1,6 @@
 fastapi==0.111.0  # Pin core framework; consider coordinated upgrade to >=0.116 with Starlette after validating tests
 uvicorn[standard]==0.30.1  # Runtime server; upgrading to 0.35.x deferred until FastAPI bump cycle
-pydantic==2.8.2  # Data validation; hold <2.12 until full regression pass
+pydantic==2.11.7  # Data validation; hold <2.12 until full regression pass
 python-dotenv==1.1.1  # Bumped (minor fixes)
 requests==2.32.5  # Bumped (bug/security fixes)
 jmespath==1.0.1
