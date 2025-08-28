@@ -1,14 +1,26 @@
 # Signet Lens VS Code Extension
 
-Visualize and verify Signet Protocol receipt chains directly inside VS Code.
+![Marketplace Version](https://img.shields.io/visual-studio-marketplace/v/odinsecureai.signet-lens)
+![Installs](https://img.shields.io/visual-studio-marketplace/i/odinsecureai.signet-lens)
+![Rating](https://img.shields.io/visual-studio-marketplace/r/odinsecureai.signet-lens)
+![License](https://img.shields.io/github/license/odin-protocol/signet-protocol)
+
+Visualize and verify Signet Protocol receipt chains directly inside VS Code with inline provenance metadata.
 
 ## Features
-* Verify a receipt chain integrity (hash links) locally
+* Local integrity verification of receipt chain hash links
 * Fetch full chain by trace id from a running Signet server
-* Visualize hops in a side panel & webview
-* Copy bundle CID (via export API) for provenance workflows
-* Inline decorations for verified receipts (hash, hop, status)
-* Diff locally calculated CID with a provided one
+* Interactive hop visualization (tree + webview)
+* Export bundle & copy CID for provenance workflows
+* Inline decorations (hash, hop index, status) in JSON
+* One-click CID diff (expected vs computed)
+* Minimal bundled footprint (dependencies inlined)
+
+## Screenshot
+> (Add `images/screenshot.png` and update this section after capturing.)
+```
+<preview pending>
+```
 
 ## Commands ("Signet Lens" prefix)
 * Verify Receipt Chain
@@ -27,13 +39,16 @@ Visualize and verify Signet Protocol receipt chains directly inside VS Code.
 | highlightReceiptFields | Highlight receipt specific fields | true |
 
 ## Requirements
-Run a Signet Protocol backend (see project README) and obtain an API key present in the server configuration.
+Run a Signet Protocol backend (see project README) and obtain an API key configured on the server.
 
-## Publishing
-1. Login once: `vsce login odin-protocol`
-2. Bump version in `package.json` (Marketplace forbids reusing versions)
-3. Package test: `npm run package` (produces .vsix)
-4. Publish: `npm run publish`
+## Publishing (Maintainers)
+1. Bump version in `package.json`
+2. `npm install` (ensure toolchain present)
+3. `npm run package:min` (generates `*.vsix`)
+4. `npm run publish` (requires `VSCE_PAT` or interactive PAT)
+
+## Telemetry
+This extension does **not** collect telemetry. Any future telemetry will be opt‑in and documented here clearly.
 
 ## License
 Apache-2.0 © 2025 ODIN Protocol Corporation

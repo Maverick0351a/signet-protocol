@@ -2,8 +2,9 @@
   "name": "signet-lens",
   "displayName": "Signet Lens",
   "description": "VS Code extension for Signet Protocol receipt visualization and verification",
-  "version": "1.0.1",
+  "version": "1.0.3",
   "publisher": "odinsecureai",
+  "icon": "icon.png",
   "engines": {
     "vscode": "^1.74.0"
   },
@@ -148,15 +149,17 @@
     ]
   },
   "scripts": {
-    "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
+    "build:bundle": "esbuild src/extension.ts --bundle --platform=node --format=cjs --external:vscode --outfile=out/extension.js --minify",
+    "build:bundle:prod": "esbuild src/extension.ts --bundle --platform=node --format=cjs --external:vscode --outfile=out/extension.js --minify --log-level=warning",
+    "vscode:prepublish": "npm run build:bundle",
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src --ext ts || echo '(lint warnings ignored)'",
     "package": "vsce package",
     "publish": "vsce publish",
-    "package:min": "npm run compile && vsce package --no-yarn",
-    "verify": "npm run compile && node -e \"console.log('build ok')\""
+    "package:min": "npm run build:bundle && vsce package --no-yarn",
+    "verify": "npm run build:bundle && node -e \"console.log('build ok')\""
   },
   "devDependencies": {
     "@types/node": "16.x",
@@ -165,14 +168,14 @@
     "@typescript-eslint/parser": "^5.45.0",
     "@vscode/test-electron": "^2.2.0",
     "@vscode/vsce": "^3.6.0",
+    "esbuild": "^0.23.0",
     "eslint": "^8.28.0",
     "typescript": "^4.9.4",
-    "vsce": "^2.15.0"
-  },
-  "dependencies": {
+    "vsce": "^2.15.0",
     "axios": "^1.6.0",
     "d3": "^7.8.0"
   },
+  "dependencies": {},
   "repository": {
     "type": "git",
     "url": "https://github.com/odin-protocol/signet-protocol.git"
