@@ -35,18 +35,38 @@
     },
     {
       "type": "graph",
+      "title": "Phase Latency (p99)",
+      "datasource": "Prometheus",
+      "targets": [{"expr": "histogram_quantile(0.99, sum by (le,phase)(rate(signet_exchange_phase_latency_seconds_bucket[5m])))"}],
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 4},
+      "lines": true
+    },
+    {
+      "type": "graph",
       "title": "Total Latency (p95)",
       "datasource": "Prometheus",
       "targets": [{"expr": "histogram_quantile(0.95, sum by (le)(rate(signet_exchange_total_latency_seconds_bucket[5m])))"}],
-      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 4},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 12},
       "lines": true
+    },
+    {
+      "type": "graph",
+      "title": "Total Latency (p99)",
+      "datasource": "Prometheus",
+      "targets": [{"expr": "histogram_quantile(0.99, sum by (le)(rate(signet_exchange_total_latency_seconds_bucket[5m])))"}],
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 12},
+      "lines": true,
+      "thresholds": [
+        {"color": "green", "value": null},
+        {"color": "red", "value": 2}
+      ]
     },
     {
       "type": "table",
       "title": "Billing Enqueue Rate",
       "datasource": "Prometheus",
       "targets": [{"expr": "rate(signet_billing_enqueue_total[5m])"}],
-      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 12}
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 20}
     },
     {
       "type": "table",
@@ -56,7 +76,7 @@
         {"expr": "signet_reserved_vex_capacity"},
         {"expr": "signet_reserved_fu_capacity"}
       ],
-      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 12}
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 20}
     },
     {
       "type": "graph",
@@ -66,10 +86,15 @@
         {"expr": "rate(signet_repair_attempts_total[5m])"},
         {"expr": "rate(signet_repair_success_total[5m])"}
       ],
-      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 12},
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 20},
       "lines": true
     }
   ],
+  "annotations": {
+    "list": [
+      {"builtIn": 1, "datasource": "-- Grafana --", "enable": true, "hide": false, "iconColor": "rgba(0, 211, 255, 1)", "name": "Annotations & Alerts", "type": "dashboard"}
+    ]
+  },
   "refresh": "30s",
   "time": {"from": "now-6h", "to": "now"},
   "version": 1
