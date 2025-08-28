@@ -117,3 +117,10 @@ yarn-error.log*
 # Production secrets (keep templates)
 .env.production.real
 reserved_production.real.json
+
+# Files with Stripe API keys (detected by GitHub push protection)
+STRIPE_PRODUCTS_SETUP_COMPLETE.md
+debug_server.py
+test_billing_direct.py
+test_billing_integration.py
+test_server_config.py
