@@ -10,10 +10,311 @@ import argparse
 import requests
 import socket
 import ipaddress
+import re
+import yaml
 from pathlib import Path
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Union
 import jsonschema
 from urllib.parse import urlparse
+
+class MappingDSLParser:
+    """Parser for Signet Mapping DSL."""
+    
+    def __init__(self):
+        self.functions = {
+            'upper': lambda x: str(x).upper(),
+            'lower': lambda x: str(x).lower(),
+            'multiply': lambda x, factor: float(x) * float(factor),
+            'divide': lambda x, divisor: float(x) / float(divisor),
+            'concat': lambda *args: ''.join(str(arg) for arg in args),
+            'format': lambda template, *args: template.format(*args),
+            'substring': lambda x, start, end=None: str(x)[start:end],
+            'replace': lambda x, old, new: str(x).replace(old, new),
+            'split': lambda x, delimiter: str(x).split(delimiter),
+            'join': lambda items, delimiter: delimiter.join(str(item) for item in items),
+            'default': lambda x, default_val: default_val if x is None else x,
+            'coalesce': lambda *args: next((arg for arg in args if arg is not None), None),
+        }
+    
+    def parse_expression(self, expr: str, data: Dict[str, Any]) -> Any:
+        """Parse and evaluate a mapping DSL expression."""
+        expr = expr.strip()
+        
+        # Simple field reference
+        if expr.startswith('$.'):
+            return self._get_nested_value(data, expr[2:])
+        
+        # Function call
+        if '(' in expr and expr.endswith(')'):
+            return self._parse_function_call(expr, data)
+        
+        # Literal value
+        if expr.startswith('"') and expr.endswith('"'):
+            return expr[1:-1]  # String literal
+        
+        if expr.isdigit() or (expr.startswith('-') and expr[1:].isdigit()):
+            return int(expr)  # Integer literal
+        
+        try:
+            return float(expr)  # Float literal
+        except ValueError:
+            pass
+        
+        if expr.lower() in ('true', 'false'):
+            return expr.lower() == 'true'  # Boolean literal
+        
+        if expr.lower() == 'null':
+            return None  # Null literal
+        
+        # Default to string
+        return expr
+    
+    def _get_nested_value(self, data: Dict[str, Any], path: str) -> Any:
+        """Get nested value from data using dot notation."""
+        keys = path.split('.')
+        value = data
+        
+        for key in keys:
+            if isinstance(value, dict) and key in value:
+                value = value[key]
+            elif isinstance(value, list) and key.isdigit():
+                index = int(key)
+                if 0 <= index < len(value):
+                    value = value[index]
+                else:
+                    return None
+            else:
+                return None
+        
+        return value
+    
+    def _parse_function_call(self, expr: str, data: Dict[str, Any]) -> Any:
+        """Parse and execute a function call."""
+        match = re.match(r'(\w+)\((.*)\)', expr)
+        if not match:
+            return expr
+        
+        func_name, args_str = match.groups()
+        
+        if func_name not in self.functions:
+            raise ValueError(f"Unknown function: {func_name}")
+        
+        # Parse arguments
+        args = []
+        if args_str.strip():
+            # Simple argument parsing (doesn't handle nested function calls)
+            arg_parts = [arg.strip() for arg in args_str.split(',')]
+            for arg in arg_parts:
+                args.append(self.parse_expression(arg, data))
+        
+        return self.functions[func_name](*args)
+
+class HELPolicyLinter:
+    """HEL (HTTP Endpoint Language) policy linter."""
+    
+    def __init__(self):
+        self.rules = [
+            self._check_localhost_blocked,
+            self._check_private_ips_blocked,
+            self._check_wildcard_usage,
+            self._check_protocol_specification,
+            self._check_port_specification,
+            self._check_domain_validation,
+        ]
+    
+    def lint_policy(self, policy: Union[str, List[str], Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Lint HEL policy configuration."""
+        issues = []
+        
+        # Normalize policy to list of rules
+        if isinstance(policy, str):
+            rules = [policy]
+        elif isinstance(policy, list):
+            rules = policy
+        elif isinstance(policy, dict):
+            rules = policy.get('allowlist', [])
+        else:
+            return [{'type': 'error', 'message': 'Invalid policy format'}]
+        
+        for i, rule in enumerate(rules):
+            rule_issues = self._lint_rule(rule, i)
+            issues.extend(rule_issues)
+        
+        return issues
+    
+    def _lint_rule(self, rule: str, index: int) -> List[Dict[str, Any]]:
+        """Lint a single HEL rule."""
+        issues = []
+        
+        for rule_func in self.rules:
+            rule_issues = rule_func(rule, index)
+            issues.extend(rule_issues)
+        
+        return issues
+    
+    def _check_localhost_blocked(self, rule: str, index: int) -> List[Dict[str, Any]]:
+        """Check for localhost/loopback addresses."""
+        issues = []
+        
+        localhost_patterns = [
+            'localhost',
+            '127.0.0.1',
+            '::1',
+            '0.0.0.0',
+        ]
+        
+        for pattern in localhost_patterns:
+            if pattern in rule.lower():
+                issues.append({
+                    'type': 'error',
+                    'rule_index': index,
+                    'rule': rule,
+                    'message': f'Localhost/loopback address detected: {pattern}',
+                    'severity': 'high'
+                })
+        
+        return issues
+    
+    def _check_private_ips_blocked(self, rule: str, index: int) -> List[Dict[str, Any]]:
+        """Check for private IP addresses."""
+        issues = []
+        
+        # Extract IP addresses from rule
+        ip_pattern = r'\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b'
+        ips = re.findall(ip_pattern, rule)
+        
+        for ip in ips:
+            try:
+                addr = ipaddress.ip_address(ip)
+                if addr.is_private or addr.is_loopback or addr.is_link_local:
+                    issues.append({
+                        'type': 'error',
+                        'rule_index': index,
+                        'rule': rule,
+                        'message': f'Private/internal IP address: {ip}',
+                        'severity': 'high'
+                    })
+            except ValueError:
+                pass
+        
+        return issues
+    
+    def _check_wildcard_usage(self, rule: str, index: int) -> List[Dict[str, Any]]:
+        """Check wildcard usage patterns."""
+        issues = []
+        
+        if '*' in rule:
+            # Check for overly broad wildcards
+            if rule.strip() == '*':
+                issues.append({
+                    'type': 'error',
+                    'rule_index': index,
+                    'rule': rule,
+                    'message': 'Overly broad wildcard - allows all domains',
+                    'severity': 'critical'
+                })
+            elif rule.startswith('*.'):
+                # Subdomain wildcard is generally OK
+                issues.append({
+                    'type': 'info',
+                    'rule_index': index,
+                    'rule': rule,
+                    'message': 'Subdomain wildcard detected - ensure this is intentional',
+                    'severity': 'low'
+                })
+            else:
+                issues.append({
+                    'type': 'warning',
+                    'rule_index': index,
+                    'rule': rule,
+                    'message': 'Wildcard usage detected - review for security implications',
+                    'severity': 'medium'
+                })
+        
+        return issues
+    
+    def _check_protocol_specification(self, rule: str, index: int) -> List[Dict[str, Any]]:
+        """Check protocol specification."""
+        issues = []
+        
+        if '://' not in rule:
+            issues.append({
+                'type': 'warning',
+                'rule_index': index,
+                'rule': rule,
+                'message': 'No protocol specified - will default to HTTP/HTTPS',
+                'severity': 'low'
+            })
+        elif rule.startswith('http://'):
+            issues.append({
+                'type': 'warning',
+                'rule_index': index,
+                'rule': rule,
+                'message': 'HTTP protocol specified - consider HTTPS for security',
+                'severity': 'medium'
+            })
+        
+        return issues
+    
+    def _check_port_specification(self, rule: str, index: int) -> List[Dict[str, Any]]:
+        """Check port specification."""
+        issues = []
+        
+        # Extract port from URL
+        port_match = re.search(r':(\d+)(?:/|$)', rule)
+        if port_match:
+            port = int(port_match.group(1))
+            
+            # Check for non-standard ports
+            if port not in [80, 443, 8080, 8443]:
+                issues.append({
+                    'type': 'info',
+                    'rule_index': index,
+                    'rule': rule,
+                    'message': f'Non-standard port specified: {port}',
+                    'severity': 'low'
+                })
+            
+            # Check for privileged ports
+            if port < 1024 and port not in [80, 443]:
+                issues.append({
+                    'type': 'warning',
+                    'rule_index': index,
+                    'rule': rule,
+                    'message': f'Privileged port specified: {port}',
+                    'severity': 'medium'
+                })
+        
+        return issues
+    
+    def _check_domain_validation(self, rule: str, index: int) -> List[Dict[str, Any]]:
+        """Check domain name validation."""
+        issues = []
+        
+        # Extract domain from rule
+        domain_match = re.search(r'(?:https?://)?([^:/\s]+)', rule)
+        if domain_match:
+            domain = domain_match.group(1)
+            
+            # Check for valid domain format
+            if not self._is_valid_domain(domain.replace('*', 'x')):  # Replace wildcards for validation
+                issues.append({
+                    'type': 'error',
+                    'rule_index': index,
+                    'rule': rule,
+                    'message': f'Invalid domain format: {domain}',
+                    'severity': 'high'
+                })
+        
+        return issues
+    
+    def _is_valid_domain(self, domain: str) -> bool:
+        """Check if domain format is valid."""
+        if len(domain) > 253:
+            return False
+        
+        pattern = r'^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?)*$'
+        return bool(re.match(pattern, domain))
 
 class SignetCLI:
     """Command-line interface for Signet Protocol tools."""
@@ -32,6 +333,12 @@ Examples:
   
   # Validate schemas
   signet schema validate --input input_schema.json --output output_schema.json --data sample.json
+  
+  # Generate mapping DSL template
+  signet map generate --input-schema input.json --output-schema output.json
+  
+  # Lint HEL policy file
+  signet policy lint --hel-file policy.hel --strict
             """
         )
         
@@ -47,6 +354,13 @@ Examples:
         map_test_parser.add_argument('--input-schema', help='Path to input schema JSON')
         map_test_parser.add_argument('--output-schema', help='Path to output schema JSON')
         map_test_parser.add_argument('--verbose', '-v', action='store_true', help='Verbose output')
+        map_test_parser.add_argument('--dsl', action='store_true', help='Use mapping DSL parser')
+        
+        map_generate_parser = map_subparsers.add_parser('generate', help='Generate mapping template')
+        map_generate_parser.add_argument('--input-schema', required=True, help='Input schema file')
+        map_generate_parser.add_argument('--output-schema', required=True, help='Output schema file')
+        map_generate_parser.add_argument('--output', '-o', help='Output mapping file')
+        map_generate_parser.add_argument('--dsl', action='store_true', help='Generate DSL format')
         
         # Policy command
         policy_parser = subparsers.add_parser('policy', help='Policy utilities')
@@ -55,8 +369,11 @@ Examples:
         policy_lint_parser = policy_subparsers.add_parser('lint', help='Validate policy configuration')
         policy_lint_parser.add_argument('--allowlist', help='Comma-separated allowlist domains')
         policy_lint_parser.add_argument('--file', help='Path to allowlist file (one domain per line)')
+        policy_lint_parser.add_argument('--hel-file', help='Path to HEL policy file')
         policy_lint_parser.add_argument('--check-dns', action='store_true', help='Perform DNS resolution checks')
         policy_lint_parser.add_argument('--simulate', help='Simulate forwarding to URL')
+        policy_lint_parser.add_argument('--strict', action='store_true', help='Strict linting mode')
+        policy_lint_parser.add_argument('--format', choices=['text', 'json', 'yaml'], default='text', help='Output format')
         
         # Schema command
         schema_parser = subparsers.add_parser('schema', help='Schema utilities')

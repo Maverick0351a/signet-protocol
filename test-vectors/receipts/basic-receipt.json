@@ -1,0 +1,16 @@
+{
+  "trace_id": "test-basic-001",
+  "hop": 1,
+  "ts": "2025-01-27T12:00:00Z",
+  "cid": "sha256:e6658d3483a7db45d5e8065f7ca38de5800d2daf54a78d46affa2deeb0839de4",
+  "canon": "{\"amount\":1000,\"currency\":\"USD\",\"invoice_id\":\"INV-001\"}",
+  "algo": "sha256",
+  "prev_receipt_hash": null,
+  "policy": {
+    "engine": "HEL",
+    "allowed": true,
+    "reason": "ok"
+  },
+  "tenant": "test",
+  "receipt_hash": "sha256:2e45f1371a9112cd8ce3403719b6cb86d97380bca25ad116c613b1b83b2265a6"
+}

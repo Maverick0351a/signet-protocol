@@ -1,0 +1,34 @@
+[
+  {
+    "trace_id": "test-chain-001",
+    "hop": 1,
+    "ts": "2025-01-27T12:00:00Z",
+    "cid": "sha256:e6658d3483a7db45d5e8065f7ca38de5800d2daf54a78d46affa2deeb0839de4",
+    "canon": "{\"amount\":1000,\"currency\":\"USD\",\"invoice_id\":\"INV-001\"}",
+    "algo": "sha256",
+    "prev_receipt_hash": null,
+    "policy": {
+      "engine": "HEL",
+      "allowed": true,
+      "reason": "ok"
+    },
+    "tenant": "test",
+    "receipt_hash": "sha256:1311dcaa9f280e0cb4457f79baaa13d92dab254d04c76a4d5aceccebcd2abd59"
+  },
+  {
+    "trace_id": "test-chain-001",
+    "hop": 2,
+    "ts": "2025-01-27T12:01:00Z",
+    "cid": "sha256:3f76a332b96f2b61d7dcb33584e317fcd0c93294824ba7eef691aaadbe8dd012",
+    "canon": "{\"amount\":1500,\"currency\":\"USD\",\"invoice_id\":\"INV-002\"}",
+    "algo": "sha256",
+    "prev_receipt_hash": "sha256:1311dcaa9f280e0cb4457f79baaa13d92dab254d04c76a4d5aceccebcd2abd59",
+    "policy": {
+      "engine": "HEL",
+      "allowed": true,
+      "reason": "ok"
+    },
+    "tenant": "test",
+    "receipt_hash": "sha256:6ff5d13562e22a84c5fe47cd2a639de57582ecbdd6e8f3847d905160e0c0ebf8"
+  }
+]

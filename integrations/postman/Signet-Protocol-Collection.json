@@ -1,0 +1,406 @@
+{
+  "info": {
+    "name": "Signet Protocol API Collection",
+    "description": "Complete API collection for Signet Protocol - Trust Fabric for AI-to-AI Communications",
+    "version": "1.0.0",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      {
+        "key": "key",
+        "value": "X-SIGNET-API-Key",
+        "type": "string"
+      },
+      {
+        "key": "value",
+        "value": "{{SIGNET_API_KEY}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "SIGNET_BASE_URL",
+      "value": "http://localhost:8088",
+      "type": "string"
+    },
+    {
+      "key": "SIGNET_API_KEY",
+      "value": "demo_key",
+      "type": "string"
+    },
+    {
+      "key": "TRACE_ID",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health & Status",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{SIGNET_BASE_URL}}/healthz",
+              "host": ["{{SIGNET_BASE_URL}}"],
+              "path": ["healthz"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Metrics (Prometheus)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{SIGNET_BASE_URL}}/metrics",
+              "host": ["{{SIGNET_BASE_URL}}"],
+              "path": ["metrics"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "JWKS (Public Keys)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{SIGNET_BASE_URL}}/.well-known/jwks.json",
+              "host": ["{{SIGNET_BASE_URL}}"],
+              "path": [".well-known", "jwks.json"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Verified Exchanges",
+      "item": [
+        {
+          "name": "Create Invoice Exchange",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Extract trace_id for subsequent requests",
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('TRACE_ID', response.trace_id);",
+                  "    ",
+                  "    // Verify response structure",
+                  "    pm.test('Response has required fields', function () {",
+                  "        pm.expect(response).to.have.property('trace_id');",
+                  "        pm.expect(response).to.have.property('normalized');",
+                  "        pm.expect(response).to.have.property('receipt');",
+                  "    });",
+                  "    ",
+                  "    // Verify receipt structure",
+                  "    pm.test('Receipt has valid structure', function () {",
+                  "        const receipt = response.receipt;",
+                  "        pm.expect(receipt).to.have.property('ts');",
+                  "        pm.expect(receipt).to.have.property('cid');",
+                  "        pm.expect(receipt).to.have.property('receipt_hash');",
+                  "        pm.expect(receipt).to.have.property('hop');",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-SIGNET-Idempotency-Key",
+                "value": "{{$randomUUID}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"payload_type\": \"openai.tooluse.invoice.v1\",\n  \"target_type\": \"invoice.iso20022.v1\",\n  \"trace_id\": \"postman-{{$randomUUID}}\",\n  \"payload\": {\n    \"tool_calls\": [{\n      \"type\": \"function\",\n      \"function\": {\n        \"name\": \"create_invoice\",\n        \"arguments\": \"{\\\"invoice_id\\\":\\\"INV-{{$randomInt}}\\\",\\\"amount\\\":1000,\\\"currency\\\":\\\"USD\\\",\\\"customer_name\\\":\\\"Postman Test Customer\\\",\\\"description\\\":\\\"API Testing Invoice\\\"}\"\n      }\n    }]\n  },\n  \"forward_url\": \"https://postman-echo.com/post\"\n}"
+            },
+            "url": {
+              "raw": "{{SIGNET_BASE_URL}}/v1/exchange",
+              "host": ["{{SIGNET_BASE_URL}}"],
+              "path": ["v1", "exchange"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Payment Exchange",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-SIGNET-Idempotency-Key",
+                "value": "{{$randomUUID}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"payload_type\": \"openai.tooluse.invoice.v1\",\n  \"target_type\": \"invoice.iso20022.v1\",\n  \"trace_id\": \"payment-{{$randomUUID}}\",\n  \"payload\": {\n    \"tool_calls\": [{\n      \"type\": \"function\",\n      \"function\": {\n        \"name\": \"process_payment\",\n        \"arguments\": \"{\\\"payment_id\\\":\\\"PAY-{{$randomInt}}\\\",\\\"amount\\\":2500,\\\"currency\\\":\\\"USD\\\",\\\"method\\\":\\\"card\\\",\\\"customer_id\\\":\\\"CUST-123\\\"}\"\n      }\n    }]\n  }\n}"
+            },
+            "url": {
+              "raw": "{{SIGNET_BASE_URL}}/v1/exchange",
+              "host": ["{{SIGNET_BASE_URL}}"],
+              "path": ["v1", "exchange"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Receipt Management",
+      "item": [
+        {
+          "name": "Get Receipt Chain",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{SIGNET_BASE_URL}}/v1/receipts/chain/{{TRACE_ID}}",
+              "host": ["{{SIGNET_BASE_URL}}"],
+              "path": ["v1", "receipts", "chain", "{{TRACE_ID}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Export Receipt Chain",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Verify export bundle structure",
+                  "if (pm.response.code === 200) {",
+                  "    const bundle = pm.response.json();",
+                  "    ",
+                  "    pm.test('Export bundle has required fields', function () {",
+                  "        pm.expect(bundle).to.have.property('trace_id');",
+                  "        pm.expect(bundle).to.have.property('chain');",
+                  "        pm.expect(bundle).to.have.property('bundle_cid');",
+                  "        pm.expect(bundle).to.have.property('exported_at');",
+                  "    });",
+                  "    ",
+                  "    pm.test('Chain is not empty', function () {",
+                  "        pm.expect(bundle.chain).to.be.an('array');",
+                  "        pm.expect(bundle.chain.length).to.be.greaterThan(0);",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{SIGNET_BASE_URL}}/v1/receipts/export/{{TRACE_ID}}",
+              "host": ["{{SIGNET_BASE_URL}}"],
+              "path": ["v1", "receipts", "export", "{{TRACE_ID}}"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Test Scenarios",
+      "item": [
+        {
+          "name": "Multi-hop Chain Test",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Generate a unique trace ID for the chain",
+                  "const chainTraceId = 'chain-' + pm.variables.replaceIn('{{$randomUUID}}');",
+                  "pm.collectionVariables.set('CHAIN_TRACE_ID', chainTraceId);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-SIGNET-Idempotency-Key",
+                "value": "{{$randomUUID}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"payload_type\": \"openai.tooluse.invoice.v1\",\n  \"target_type\": \"invoice.iso20022.v1\",\n  \"trace_id\": \"{{CHAIN_TRACE_ID}}\",\n  \"payload\": {\n    \"tool_calls\": [{\n      \"type\": \"function\",\n      \"function\": {\n        \"name\": \"create_invoice\",\n        \"arguments\": \"{\\\"invoice_id\\\":\\\"INV-CHAIN-1\\\",\\\"amount\\\":1000,\\\"currency\\\":\\\"USD\\\"}\"\n      }\n    }]\n  }\n}"
+            },
+            "url": {
+              "raw": "{{SIGNET_BASE_URL}}/v1/exchange",
+              "host": ["{{SIGNET_BASE_URL}}"],
+              "path": ["v1", "exchange"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Chain Hop 2",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-SIGNET-Idempotency-Key",
+                "value": "{{$randomUUID}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"payload_type\": \"openai.tooluse.invoice.v1\",\n  \"target_type\": \"invoice.iso20022.v1\",\n  \"trace_id\": \"{{CHAIN_TRACE_ID}}\",\n  \"payload\": {\n    \"tool_calls\": [{\n      \"type\": \"function\",\n      \"function\": {\n        \"name\": \"update_invoice\",\n        \"arguments\": \"{\\\"invoice_id\\\":\\\"INV-CHAIN-1\\\",\\\"status\\\":\\\"processed\\\",\\\"amount\\\":1500}\"\n      }\n    }]\n  }\n}"
+            },
+            "url": {
+              "raw": "{{SIGNET_BASE_URL}}/v1/exchange",
+              "host": ["{{SIGNET_BASE_URL}}"],
+              "path": ["v1", "exchange"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Verify Chain",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{SIGNET_BASE_URL}}/v1/receipts/chain/{{CHAIN_TRACE_ID}}",
+              "host": ["{{SIGNET_BASE_URL}}"],
+              "path": ["v1", "receipts", "chain", "{{CHAIN_TRACE_ID}}"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Error Scenarios",
+      "item": [
+        {
+          "name": "Invalid API Key",
+          "request": {
+            "auth": {
+              "type": "apikey",
+              "apikey": [
+                {
+                  "key": "key",
+                  "value": "X-SIGNET-API-Key",
+                  "type": "string"
+                },
+                {
+                  "key": "value",
+                  "value": "invalid_key",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"payload_type\": \"openai.tooluse.invoice.v1\",\n  \"target_type\": \"invoice.iso20022.v1\",\n  \"trace_id\": \"error-test\",\n  \"payload\": {\n    \"tool_calls\": [{\n      \"type\": \"function\",\n      \"function\": {\n        \"name\": \"create_invoice\",\n        \"arguments\": \"{}\"\n      }\n    }]\n  }\n}"
+            },
+            "url": {
+              "raw": "{{SIGNET_BASE_URL}}/v1/exchange",
+              "host": ["{{SIGNET_BASE_URL}}"],
+              "path": ["v1", "exchange"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Malformed Payload",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"invalid_field\": \"test\"\n}"
+            },
+            "url": {
+              "raw": "{{SIGNET_BASE_URL}}/v1/exchange",
+              "host": ["{{SIGNET_BASE_URL}}"],
+              "path": ["v1", "exchange"]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Global pre-request script",
+          "console.log('Making request to Signet Protocol API');"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Global test script",
+          "pm.test('Response time is reasonable', function () {",
+          "    pm.expect(pm.response.responseTime).to.be.below(5000);",
+          "});",
+          "",
+          "pm.test('Response has proper headers', function () {",
+          "    pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json');",
+          "});"
+        ]
+      }
+    }
+  ]
+}

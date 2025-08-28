@@ -1,0 +1,11 @@
+{
+  "tool_calls": [
+    {
+      "type": "function",
+      "function": {
+        "name": "create_invoice",
+        "arguments": "{\"amount\": 100.50, \"currency\": \"USD\", \"customer\": \"Acme Corp\", \"description\": \"Consulting services\"}"
+      }
+    }
+  ]
+}

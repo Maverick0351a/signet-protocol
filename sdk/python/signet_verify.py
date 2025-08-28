@@ -3,6 +3,8 @@ Signet Protocol - Python Verification SDK
 Verify receipts and chains in 5 lines of code.
 """
 
+__version__ = "1.0.0"
+
 import json
 import hashlib
 import base64
