@@ -1,6 +1,6 @@
 # 🔗 Signet Protocol - Trust Fabric for AI-to-AI Communications
 
-[![Tests](https://img.shields.io/badge/tests-50%2F50%20passing-brightgreen)](./tests/)
+[![Tests](https://img.shields.io/badge/tests-52%20passed%20%7C%201%20skipped-brightgreen)](./tests/)
 [![Production Ready](https://img.shields.io/badge/status-production%20ready-green)](#deployment)
 [![Standard](https://img.shields.io/badge/standard-SR--1%20%7C%20SVX--1-blue)](#specifications)
 
@@ -99,10 +99,10 @@ result = verify_invoice("http://localhost:8088", "your-api-key", invoice_data)
 
 ```bash
 pytest tests/ -v
-# ================================================== 50 passed 1 warning in 2.65s ===================================================
+# =============================== 52 passed, 1 skipped, 6 warnings in 7.6s ===============================
 ```
 
-- ✅ **50/50 tests passing** (100% success rate)
+- ✅ **52 tests passing, 1 skipped**
 - ✅ **Server running** and healthy on port 8088
 - ✅ **All advanced features** implemented and verified
 - ✅ **Production deployment** ready with comprehensive guides
@@ -303,7 +303,7 @@ Workflow `.github/workflows/test_badge.yml` generates `badges/tests-badge.svg` w
 
 ### Run Test Suite
 ```bash
-# All tests (50/50 passing)
+# Full suite (52 passed, 1 skipped)
 pytest tests/ -v
 
 # Specific categories
