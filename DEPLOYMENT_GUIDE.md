@@ -1,7 +1,7 @@
 # Signet Protocol - Production Deployment Guide
 
 ## 🎯 Current Status
-✅ **All 50 tests passing (100% success rate)**  
+✅ **52 tests passing, 1 skipped (current suite)**  
 ✅ **Server running and healthy on port 8088**  
 ✅ **All advanced features implemented and tested**  
 
@@ -141,7 +141,7 @@ curl http://your-domain:8088/.well-known/jwks.json
 ## 📊 Monitoring Setup
 
 ### Prometheus Metrics
-The server exposes 43+ metrics at `/metrics`:
+The server exposes Prometheus metrics at `/metrics` (core pipeline, billing, latency, fallback):
 - `signet_exchanges_total`
 - `signet_denied_total`
 - `signet_forward_total`
@@ -189,7 +189,7 @@ Monitor application logs for:
 ✅ Transaction Safety  
 ✅ Conflict Resolution  
 ✅ Comprehensive Error Handling  
-✅ 100% Test Coverage  
+✅ All tests green (52 passed, 1 skipped)  
 
 ## 🚀 Next Steps
 
@@ -208,4 +208,72 @@ The Signet Protocol is now production-ready with enterprise-grade features:
 - Comprehensive monitoring
 - Scalable architecture
 
-All 50 tests are passing, confirming the system is ready for production deployment!
+All tests are passing (52 + 1 skipped), confirming the system is ready for production deployment!
+
+## 🚀 Fly.io Deployment (Managed Runtime)
+
+### 1. Prerequisites
+```bash
+fly auth login
+fly apps create signet-protocol || true
+```
+
+### 2. Secrets (never commit secrets)
+```bash
+fly secrets set \
+  SP_API_KEYS='{"demo_key":{"tenant":"acme","fallback_enabled":true}}' \
+  SP_OPENAI_API_KEY=sk-openai-xxxxx \
+  SP_STRIPE_API_KEY=sk-stripe-xxxxx \
+  SP_PRIVATE_KEY_B64=$(base64 -w0 signet_private.pem) \
+  SP_RESERVED_CONFIG=/app/reserved.json
+```
+
+### 3. Deploy
+```bash
+fly deploy
+```
+
+### 4. Verify
+```bash
+curl https://signet-protocol.fly.dev/healthz
+curl https://signet-protocol.fly.dev/metrics | head
+```
+
+### 5. Scaling & Concurrency
+SQLite is fine for low volume. For multi-instance horizontal scaling use PostgreSQL (managed DB) and set `SP_STORAGE=postgres` + `SP_POSTGRES_URL` secret.
+```bash
+fly scale count 1          # start with single instance (SQLite)
+fly scale memory 512       # adjust memory
+fly scale vm shared-cpu-1x # choose VM size
+```
+
+### 6. Persistent Storage (SQLite)
+If you keep SQLite in production mount a volume:
+```bash
+fly volumes create signet_data --size 1
+# Then add to fly.toml (example):
+# [[mounts]]
+#   source = "signet_data"
+#   destination = "/app/data"
+```
+
+### 7. Observability
+Expose metrics (already). For tracing set OTEL vars:
+```bash
+fly secrets set OTEL_EXPORTER_OTLP_ENDPOINT="http://otel-collector.internal:4317" OTEL_SERVICE_NAME=signet
+```
+
+### 8. Rolling Updates
+`fly deploy` performs rolling replacement; health checks (configured in `fly.toml`) gate traffic shift.
+
+### 9. Post-Deploy Admin
+Reload reserved capacity without restart:
+```bash
+curl -X POST -H "X-SIGNET-API-Key: demo_key" https://signet-protocol.fly.dev/v1/admin/reload-reserved
+```
+
+### 10. Next Hardening Steps
+- Add rate limiting / WAF (Fly Machines + proxy or upstream CDN)
+- Enable HTTPS redirects (handled automatically for 443; optionally force redirect in app/middleware)
+- Move secrets rotation into scheduled workflow
+- Add log aggregation (Fly logs -> Loki / Datadog)
