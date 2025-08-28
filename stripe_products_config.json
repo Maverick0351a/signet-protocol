@@ -1,0 +1,111 @@
+{
+  "products": {
+    "vex": {
+      "id": "prod_SwmZ05cYKw2Tmx",
+      "name": "Signet VEx (Verified Exchange)",
+      "description": "Verified Exchange operations - cryptographic verification of AI interactions with hash-linked receipts and audit trails",
+      "type": "service"
+    },
+    "fu": {
+      "id": "prod_SwmZuW76rPaQiJ",
+      "name": "Signet FU (Fallback Units)",
+      "description": "Fallback Units for AI repair services - token-based usage when LLM assistance is required for JSON validation",
+      "type": "service"
+    },
+    "starter": {
+      "id": "prod_SwmZ0thWwIs4o6",
+      "name": "Signet Protocol - Starter Plan",
+      "description": "Starter plan with 10,000 VEx and 50,000 FU tokens monthly",
+      "type": "service"
+    },
+    "professional": {
+      "id": "prod_SwmZZcKlwBzrns",
+      "name": "Signet Protocol - Professional Plan",
+      "description": "Professional plan with 100,000 VEx and 500,000 FU tokens monthly",
+      "type": "service"
+    },
+    "enterprise": {
+      "id": "prod_SwmZRF2Ps0LNyu",
+      "name": "Signet Protocol - Enterprise Plan",
+      "description": "Enterprise plan with 1,000,000 VEx and 5,000,000 FU tokens monthly",
+      "type": "service"
+    }
+  },
+  "prices": {
+    "vex_tier1": {
+      "id": "price_1S0t0MLcPYf7t6osWsnR1zSS",
+      "product": "prod_SwmZ05cYKw2Tmx",
+      "unit_amount": 500,
+      "currency": "usd",
+      "nickname": "VEx Tier 1 - $0.005 per exchange"
+    },
+    "vex_tier2": {
+      "id": "price_1S0t0MLcPYf7t6oszotpd1au",
+      "product": "prod_SwmZ05cYKw2Tmx",
+      "unit_amount": 800,
+      "currency": "usd",
+      "nickname": "VEx Tier 2 - $0.008 per exchange"
+    },
+    "fu_tier1": {
+      "id": "price_1S0t0OLcPYf7t6os3M3aWNPz",
+      "product": "prod_SwmZuW76rPaQiJ",
+      "unit_amount": 100,
+      "currency": "usd",
+      "nickname": "FU Tier 1 - $0.001 per token"
+    },
+    "fu_tier2": {
+      "id": "price_1S0t0OLcPYf7t6osv1Y8JMxp",
+      "product": "prod_SwmZuW76rPaQiJ",
+      "unit_amount": 80,
+      "currency": "usd",
+      "nickname": "FU Tier 2 - $0.0008 per token"
+    },
+    "starter_monthly": {
+      "id": "price_1S0t0PLcPYf7t6os2j1JhpRx",
+      "product": "prod_SwmZ0thWwIs4o6",
+      "unit_amount": 49900,
+      "currency": "usd",
+      "recurring": {
+        "interval": "month"
+      },
+      "nickname": "Starter Plan - $499/month"
+    },
+    "pro_monthly": {
+      "id": "price_1S0t0PLcPYf7t6oszLmJTyLc",
+      "product": "prod_SwmZZcKlwBzrns",
+      "unit_amount": 199900,
+      "currency": "usd",
+      "recurring": {
+        "interval": "month"
+      },
+      "nickname": "Professional Plan - $1,999/month"
+    },
+    "enterprise_monthly": {
+      "id": "price_1S0t0QLcPYf7t6ostUSgtTdB",
+      "product": "prod_SwmZRF2Ps0LNyu",
+      "unit_amount": 999900,
+      "currency": "usd",
+      "recurring": {
+        "interval": "month"
+      },
+      "nickname": "Enterprise Plan - $9,999/month"
+    }
+  },
+  "payment_links": {
+    "starter": {
+      "id": "plink_1S0t0RLcPYf7t6osF9MiaCjf",
+      "url": "https://buy.stripe.com/7sY7sM6Wu9OL2y63rG2VG00",
+      "price": "price_1S0t0PLcPYf7t6os2j1JhpRx"
+    },
+    "professional": {
+      "id": "plink_1S0t0RLcPYf7t6osWZqjKVei",
+      "url": "https://buy.stripe.com/eVq8wQdkSgd93CabYc2VG01",
+      "price": "price_1S0t0PLcPYf7t6oszLmJTyLc"
+    },
+    "enterprise": {
+      "id": "plink_1S0t0SLcPYf7t6osAUiljnyS",
+      "url": "https://buy.stripe.com/cNiaEY4Omf958Wu7HW2VG02",
+      "price": "price_1S0t0QLcPYf7t6ostUSgtTdB"
+    }
+  }
+}

@@ -1,81 +1,58 @@
-#!/usr/bin/env python3
-"""
-Signet Protocol Transform Manager
+import json, jmespath
+from typing import Dict, Any, Any as AnyType
+from .functions.currency import to_minor
 
-Handles payload transformation between different formats
-with schema validation and semantic invariants.
-"""
+FUNCTIONS = { "to_minor": to_minor }
 
-import json
-from typing import Dict, Any, Optional
+def apply_function(func_name: str, args: list):
+    if func_name not in FUNCTIONS:
+        raise ValueError(f"Unknown function: {func_name}")
+    return FUNCTIONS[func_name](*args)
 
+def split_args(s: str):
+    buf, out, in_str = "", [], False
+    for ch in s:
+        if ch == "'" and not in_str:
+            in_str = True; buf += ch; continue
+        if ch == "'" and in_str:
+            in_str = False; buf += ch; continue
+        if ch == "," and not in_str:
+            out.append(buf.strip()); buf=""; continue
+        buf += ch
+    if buf.strip():
+        out.append(buf.strip())
+    return out
 
-class TransformManager:
-    """Manages payload transformations"""
-    
-    def __init__(self):
-        self.transformations = {
-            ('openai.tooluse.invoice.v1', 'invoice.iso20022.v1'): self._transform_openai_to_iso20022
-        }
-    
-    async def transform(
-        self,
-        payload: Dict[str, Any],
-        source_type: str,
-        target_type: str
-    ) -> Dict[str, Any]:
-        """Transform payload from source to target format"""
-        
-        # Check if transformation is available
-        transform_key = (source_type, target_type)
-        if transform_key not in self.transformations:
-            # Return payload as-is if no transformation available
-            return payload
-        
-        # Apply transformation
-        transformer = self.transformations[transform_key]
-        return await transformer(payload)
-    
-    async def _transform_openai_to_iso20022(self, payload: Dict[str, Any]) -> Dict[str, Any]:
-        """Transform OpenAI tool use to ISO 20022 format"""
-        try:
-            # Extract tool calls
-            tool_calls = payload.get('tool_calls', [])
-            if not tool_calls:
-                return payload
-            
-            # Process first tool call (simplified)
-            tool_call = tool_calls[0]
-            function = tool_call.get('function', {})
-            
-            if function.get('name') == 'create_invoice':
-                # Parse arguments
-                args_str = function.get('arguments', '{}')
-                args = json.loads(args_str) if isinstance(args_str, str) else args_str
-                
-                # Transform to ISO 20022 structure
-                return {
-                    'invoice_id': args.get('invoice_id'),
-                    'amount_minor': int(args.get('amount', 0) * 100),  # Convert to minor units
-                    'currency': args.get('currency', 'USD'),
-                    'created_at': payload.get('created_at'),
-                    'metadata': {
-                        'source_type': 'openai.tooluse.invoice.v1',
-                        'transformed_at': payload.get('timestamp')
-                    }
-                }
-            
-            return payload
-            
-        except Exception as e:
-            # Return original payload if transformation fails
-            return payload
-    
-    def register_transformation(
-        self,
-        source_type: str,
-        target_type: str,
-        transformer_func
-    ) -> None:
-        """Register a new transformation"""
-        self.transformations[(source_type, target_type)] = transformer_func
+def set_deep(obj: Dict[str, Any], dotted: str, value: AnyType):
+    parts = dotted.split(".")
+    cur = obj
+    for p in parts[:-1]:
+        if p not in cur or not isinstance(cur[p], dict):
+            cur[p] = {}
+        cur = cur[p]
+    cur[parts[-1]] = value
+
+def transform(payload: Dict[str, Any], mapping: Dict[str, Any]) -> Dict[str, Any]:
+    out = {}
+    for target_path, expr in mapping.get("assign", {}).items():
+        value = None
+        if isinstance(expr, str):
+            if "(" in expr and expr.endswith(")") and expr.split("(")[0] in FUNCTIONS:
+                name = expr.split("(")[0]
+                args_str = expr[len(name)+1:-1]
+                args = []
+                if args_str.strip():
+                    parts = split_args(args_str)
+                    for part in parts:
+                        part = part.strip()
+                        if part.startswith("'") and part.endswith("'"):
+                            args.append(part[1:-1])
+                        else:
+                            args.append(jmespath.search(part, payload))
+                value = apply_function(name, args)
+            else:
+                value = jmespath.search(expr, payload)
+        else:
+            value = expr
+        set_deep(out, target_path, value)
+    return out

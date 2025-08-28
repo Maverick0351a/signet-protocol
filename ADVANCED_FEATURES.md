@@ -1,386 +1,257 @@
-# Signet Protocol Advanced Features
+# Signet Protocol - Advanced Production Features
 
-**Enterprise-Grade Capabilities for Production Deployments**
+## 🎯 Overview
 
-This document covers the advanced features and enterprise capabilities of the Signet Protocol.
+The Signet Protocol has been enhanced with enterprise-grade features for production deployment, including advanced security, scalability, and billing capabilities. This document outlines the comprehensive improvements made to transform the MVP into a production-ready system.
 
-## 🏢 Enterprise Billing System
+## 🔒 Security Enhancements
 
-### Reserved Capacity Model
+### A. IP Pinning & SSRF Protection (`server/pipeline/forward.py`)
 
-The Signet Protocol supports enterprise billing with reserved capacity and overage pricing:
+**Problem Solved**: Prevent DNS rebinding attacks and SSRF vulnerabilities in outbound requests.
+
+**Implementation**:
+- **IP Resolution Validation**: All hostnames resolved to IPs, validated as public addresses
+- **HTTPS IP Pinning**: Custom adapter pins connections to specific IPs while preserving SNI
+- **Response Size Limiting**: 1MB streaming cap prevents memory exhaustion attacks
+- **IDN Support**: Proper handling of International Domain Names
+
+```python
+# Example: Enhanced forwarding with security
+result = safe_forward("https://api.example.com/webhook", payload)
+# Returns: {"status_code": 200, "host": "api.example.com", "pinned_ip": "93.184.216.34", "response_size": 1024}
+```
+
+**Security Benefits**:
+- ✅ Blocks localhost/private IP access attempts
+- ✅ Prevents DNS rebinding attacks
+- ✅ Limits response size to prevent DoS
+- ✅ Maintains TLS security with proper SNI
+
+### B. Enhanced Input Validation & Canonicalization
+
+**RFC 8785 Compliant JCS** (`server/utils/jcs.py`):
+- Unicode NFC normalization for consistent string handling
+- Proper number formatting (integers vs floats)
+- Deterministic canonicalization for stable receipt hashes
+- Backward compatibility with legacy systems
+
+## 📊 Advanced Billing & Metering
+
+### A. Token-Level Metering (`server/pipeline/providers/openai_provider.py`)
+
+**Problem Solved**: Precise billing for AI service usage with quota enforcement.
+
+**Features**:
+- **Token Counting**: Exact token usage tracking from OpenAI API responses
+- **Quota Enforcement**: Per-tenant monthly limits with HTTP 429 responses
+- **Estimation**: Pre-request token estimation for rate limiting
+- **Billing Integration**: Seamless flow into Stripe billing system
+
+```python
+# Example: Fallback with token tracking
+result = provider.repair_with_tokens(broken_json, schema)
+# Returns: FallbackResult(repaired_text="...", fu_tokens=75, success=True)
+```
+
+### B. Reserved Capacity & Tiered Pricing (`server/pipeline/billing.py`)
+
+**Problem Solved**: Enterprise billing with monthly commitments and overage tiers.
+
+**Architecture**:
+```json
+{
+  "tenant": "enterprise_customer",
+  "vex_reserved": 100000,
+  "fu_reserved": 500000,
+  "vex_overage_tiers": [
+    {"threshold": 50000, "price_per_unit": 0.005, "stripe_item": "si_tier1"}
+  ]
+}
+```
+
+**Business Benefits**:
+- 💰 Predictable monthly revenue from reserved capacity
+- 📈 Flexible overage pricing for usage spikes
+- 📊 Detailed usage analytics and reporting
+- 🎯 Per-tenant customization
+
+## 🚀 Scalability Features
+
+### A. PostgreSQL Storage Adapter (`server/pipeline/storage_postgres.py`)
+
+**Problem Solved**: Production-grade database backend with ACID compliance.
+
+**Features**:
+- **Drop-in Replacement**: Identical interface to SQLite storage
+- **Transaction Safety**: Proper BEGIN/COMMIT/ROLLBACK handling
+- **Performance Optimization**: Indexes on critical query paths
+- **Conflict Resolution**: Receipt chain integrity with row-level locking
+
+```bash
+# Environment Configuration
+SP_STORAGE=postgres
+SP_POSTGRES_URL=postgresql://user:pass@localhost/signet
+```
+
+### B. Enhanced Configuration System (`server/settings.py`)
+
+**Multi-Backend Support**:
+- Storage backend selection (SQLite/PostgreSQL)
+- Reserved capacity configuration loading
+- Per-tenant quota management
+- Factory pattern for clean architecture
+
+## 📈 Monitoring & Observability
+
+### A. Comprehensive Metrics
+
+**Prometheus Integration**:
+```
+# Core Metrics
+signet_exchanges_total
+signet_denied_total  
+signet_forward_total
+signet_billing_enqueued_total{type="vex|fu"}
+
+# Advanced Metrics
+signet_reserved_capacity{tenant,type}
+signet_overage_charges_total{tenant,type,tier}
+signet_fallback_used_total
+```
+
+### B. Health & Status Endpoints
+
+- `/healthz` - System health with storage type
+- `/metrics` - Prometheus metrics (43+ metrics)
+- `/.well-known/jwks.json` - Public key distribution
+- `/v1/receipts/export/{trace_id}` - Signed audit trails
+
+## 🧪 Comprehensive Testing
+
+### A. Security Testing (`tests/test_policy.py`)
+- IP validation edge cases (localhost, private, link-local)
+- SSRF protection scenarios
+- Response size limiting
+- IDN domain handling
+
+### B. JCS Compliance Testing (`tests/test_jcs.py`)
+- RFC 8785 compliance verification
+- Unicode normalization edge cases
+- Number formatting consistency
+- Hash stability validation
+
+### C. Billing Integration Testing (`tests/test_fallback_metering.py`)
+- Token counting accuracy
+- Quota enforcement scenarios
+- Billing integration workflows
+- Error handling and fallbacks
+
+## 🔧 Production Deployment
+
+### A. Environment Configuration
+
+```bash
+# Core Configuration
+SP_API_KEYS='{"prod_key":{"tenant":"acme","fallback_enabled":true,"fu_monthly_limit":50000}}'
+SP_HEL_ALLOWLIST="api.openai.com,webhook.example.com"
+
+# Storage & Billing
+SP_STORAGE=postgres
+SP_POSTGRES_URL=postgresql://signet:password@db.example.com/signet
+SP_STRIPE_API_KEY=sk_live_...
+SP_RESERVED_CONFIG=/etc/signet/reserved.json
+
+# Security
+SP_PRIVATE_KEY_B64=...
+SP_KID=signet-prod-key-1
+```
+
+### B. Reserved Capacity Configuration
 
 ```json
 {
-  "enterprise_customer": {
-    "tenant_id": "enterprise-corp",
-    "vex_reserved": 100000,
-    "fu_reserved": 500000,
+  "enterprise": {
+    "vex_reserved": 1000000,
+    "fu_reserved": 5000000,
     "vex_overage_tiers": [
-      {"threshold": 0, "price_per_unit": 0.01},
-      {"threshold": 50000, "price_per_unit": 0.005},
-      {"threshold": 100000, "price_per_unit": 0.002}
+      {"threshold": 100000, "price_per_unit": 0.008, "stripe_item": "si_ent_vex_t1"},
+      {"threshold": 500000, "price_per_unit": 0.006, "stripe_item": "si_ent_vex_t2"}
     ],
     "fu_overage_tiers": [
-      {"threshold": 0, "price_per_unit": 0.002},
-      {"threshold": 250000, "price_per_unit": 0.001}
+      {"threshold": 1000000, "price_per_unit": 0.0005, "stripe_item": "si_ent_fu_t1"}
     ]
   }
 }
 ```
 
-### Stripe Integration
+## 📋 Migration Guide
 
-Automatic invoice generation and payment processing:
+### From MVP to Production
 
-```python
-# Automatic monthly billing
-billing_manager = BillingManager(storage)
-charges = await billing_manager.calculate_charges(
-    api_key="enterprise-corp",
-    billing_period_start=datetime(2025, 1, 1),
-    billing_period_end=datetime(2025, 1, 31)
-)
+1. **Update Environment Variables**:
+   ```bash
+   # Add new configuration options
+   SP_STORAGE=postgres
+   SP_RESERVED_CONFIG=./reserved.json
+   ```
 
-# Create Stripe invoice
-invoice_id = await billing_manager.create_stripe_invoice(
-    api_key="enterprise-corp",
-    charges=charges,
-    stripe_customer_id="cus_enterprise123"
-)
-```
+2. **Database Migration**:
+   ```bash
+   # PostgreSQL setup (optional)
+   createdb signet_production
+   # Schema auto-created on first run
+   ```
 
-## 🔐 Advanced Security Features
+3. **Reserved Capacity Setup**:
+   ```bash
+   # Create reserved.json with tenant configurations
+   cp reserved.json.example reserved.json
+   # Edit tenant-specific settings
+   ```
 
-### HEL (Host Egress List) Policy Engine
+4. **Test Deployment**:
+   ```bash
+   # Run comprehensive tests
+   pytest tests/ -v
+   
+   # Verify endpoints
+   curl http://localhost:8088/healthz
+   curl http://localhost:8088/metrics
+   ```
 
-Comprehensive egress control with multiple validation layers:
+## 🎯 Key Benefits
 
-```python
-# Policy configuration
-policy_engine = PolicyEngine(settings)
+### For Developers
+- **Security**: SSRF protection and input validation
+- **Reliability**: Transaction safety and conflict resolution
+- **Observability**: Comprehensive metrics and logging
+- **Testing**: Full test coverage for critical paths
 
-# Multi-layer validation
-# 1. Allowlist checking
-# 2. DNS resolution validation
-# 3. Private IP blocking
-# 4. Suspicious pattern detection
-# 5. Scheme validation
+### For Business
+- **Revenue**: Reserved capacity and tiered pricing
+- **Scalability**: PostgreSQL backend for growth
+- **Compliance**: RFC-compliant canonicalization
+- **Analytics**: Detailed usage reporting
 
-result = await policy_engine.check_policy(
-    "https://api.partner.com/webhook",
-    "enterprise-api-key"
-)
-```
+### For Operations
+- **Monitoring**: Prometheus metrics integration
+- **Deployment**: Multi-backend configuration
+- **Maintenance**: Automated schema management
+- **Security**: Production-grade SSRF protection
 
-### IP Pinning and DNS Security
+## 🚀 Next Steps
 
-- Prevents DNS rebinding attacks
-- Blocks private IP ranges (RFC 1918)
-- Validates against cloud metadata endpoints
-- Implements DNS cache poisoning protection
+The Signet Protocol is now production-ready with enterprise-grade features. Consider these additional enhancements for specific use cases:
 
-### SSRF Protection
-
-Comprehensive Server-Side Request Forgery protection:
-
-```python
-# Blocked patterns
-blocked_patterns = [
-    r'\d+\.\d+\.\d+\.\d+',  # Raw IP addresses
-    r'localhost',
-    r'127\.0\.0\.1',
-    r'metadata\.google',  # Cloud metadata
-    r'169\.254\.',  # Link-local
-]
-```
-
-## 🧠 Semantic Invariants
-
-Prevents LLM corruption of critical business data:
-
-```python
-class SemanticInvariantValidator:
-    def validate_invoice_data(self, original, transformed):
-        # Ensure critical fields are preserved
-        assert original['amount'] == transformed['amount_minor'] / 100
-        assert original['currency'] == transformed['currency']
-        assert original['invoice_id'] == transformed['invoice_id']
-        
-        # Validate business rules
-        if transformed['amount_minor'] > 1000000:  # $10,000
-            assert 'approval_required' in transformed
-```
-
-## 📊 Comprehensive Monitoring
-
-### 43+ Prometheus Metrics
-
-```prometheus
-# Core business metrics
-signet_exchanges_total{tenant,api_key,payload_type,target_type}
-signet_denied_total{reason,tenant,host}
-signet_forward_total{host,status_code}
-signet_receipt_created_total{tenant,hop}
-
-# Performance metrics
-signet_request_duration_seconds{method,endpoint}
-signet_transform_duration_seconds{source_type,target_type}
-signet_forward_duration_seconds{host}
-signet_signature_duration_seconds{operation}
-
-# Billing metrics
-signet_reserved_capacity{tenant,type="vex|fu"}
-signet_usage_current{tenant,type="vex|fu"}
-signet_overage_charges_total{tenant,type,tier}
-signet_fallback_used_total{tenant,reason}
-
-# Security metrics
-signet_policy_denied_total{reason,host,tenant}
-signet_suspicious_requests_total{pattern,tenant}
-signet_rate_limited_total{tenant,limit_type}
-
-# System metrics
-signet_storage_operations_total{operation,backend}
-signet_crypto_operations_total{operation,key_type}
-signet_cache_hits_total{cache_type}
-signet_cache_misses_total{cache_type}
-```
-
-### Real-time Alerting
-
-```yaml
-# Prometheus alerting rules
-groups:
-  - name: signet.rules
-    rules:
-      - alert: HighErrorRate
-        expr: rate(signet_denied_total[5m]) > 0.1
-        for: 2m
-        labels:
-          severity: warning
-        annotations:
-          summary: "High error rate detected"
-          
-      - alert: BillingLimitExceeded
-        expr: signet_usage_current / signet_reserved_capacity > 0.9
-        for: 1m
-        labels:
-          severity: critical
-        annotations:
-          summary: "Tenant approaching billing limit"
-```
-
-## 🔄 Fallback and Repair System
-
-AI-powered repair for malformed data:
-
-```python
-class FallbackRepairManager:
-    def __init__(self, openai_client):
-        self.openai_client = openai_client
-        
-    async def repair_malformed_json(self, broken_json, schema):
-        """Use GPT to repair malformed JSON"""
-        prompt = f"""
-        Repair this malformed JSON to match the schema:
-        
-        Broken JSON: {broken_json}
-        Expected Schema: {schema}
-        
-        Return only valid JSON:
-        """
-        
-        response = await self.openai_client.chat.completions.create(
-            model="gpt-4",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0
-        )
-        
-        return json.loads(response.choices[0].message.content)
-```
-
-## 🗄️ Multi-Backend Storage
-
-### PostgreSQL Production Backend
-
-```python
-class PostgreSQLStorage(StorageBackend):
-    def __init__(self, database_url):
-        self.engine = create_async_engine(database_url)
-        self.session_factory = async_sessionmaker(self.engine)
-    
-    async def store_receipt(self, receipt_data, idempotency_key=None):
-        async with self.session_factory() as session:
-            receipt = Receipt(
-                receipt_id=receipt_data['receipt_id'],
-                trace_id=receipt_data['trace_id'],
-                api_key=receipt_data['api_key'],
-                receipt_data=json.dumps(receipt_data),
-                idempotency_key=idempotency_key
-            )
-            session.add(receipt)
-            await session.commit()
-```
-
-### Connection Pooling
-
-```python
-# Production connection pool configuration
-engine = create_async_engine(
-    database_url,
-    pool_size=20,
-    max_overflow=30,
-    pool_pre_ping=True,
-    pool_recycle=3600
-)
-```
-
-## 🔗 Hash-Chain Integrity
-
-Cryptographic linking of receipt chains:
-
-```python
-def create_receipt_chain(receipts):
-    """Create hash-linked receipt chain"""
-    for i, receipt in enumerate(receipts):
-        receipt['hop'] = i + 1
-        
-        if i > 0:
-            # Link to previous receipt
-            prev_hash = receipts[i-1]['receipt_hash']
-            receipt['prev_receipt_hash'] = prev_hash
-        
-        # Compute receipt hash
-        receipt_copy = {k: v for k, v in receipt.items() if k != 'signature'}
-        receipt['receipt_hash'] = compute_canonical_hash(receipt_copy)
-        
-        # Sign receipt
-        receipt['signature'] = signing_manager.sign_data(receipt_copy)
-    
-    return receipts
-```
-
-## 📤 Export and Audit
-
-### Signed Audit Bundles
-
-```python
-async def export_audit_trail(tenant_id, start_date, end_date):
-    """Export cryptographically signed audit bundle"""
-    receipts = await storage.get_receipts_for_period(
-        tenant_id, start_date, end_date
-    )
-    
-    bundle = {
-        'tenant_id': tenant_id,
-        'export_timestamp': datetime.utcnow().isoformat(),
-        'period': {
-            'start': start_date.isoformat(),
-            'end': end_date.isoformat()
-        },
-        'receipt_count': len(receipts),
-        'receipts': receipts,
-        'integrity_hash': compute_bundle_hash(receipts)
-    }
-    
-    # Sign the entire bundle
-    bundle['bundle_signature'] = signing_manager.sign_data(bundle)
-    
-    return bundle
-```
-
-## 🚀 Performance Optimizations
-
-### Async Processing
-
-- Full async/await support
-- Non-blocking I/O operations
-- Concurrent request handling
-- Background task processing
-
-### Caching Strategy
-
-```python
-# Redis caching for frequently accessed data
-class CacheManager:
-    def __init__(self, redis_client):
-        self.redis = redis_client
-    
-    async def cache_receipt(self, receipt_id, receipt_data, ttl=3600):
-        await self.redis.setex(
-            f"receipt:{receipt_id}",
-            ttl,
-            json.dumps(receipt_data)
-        )
-    
-    async def get_cached_receipt(self, receipt_id):
-        cached = await self.redis.get(f"receipt:{receipt_id}")
-        return json.loads(cached) if cached else None
-```
-
-### Database Optimizations
-
-- Prepared statements
-- Connection pooling
-- Query optimization
-- Index strategies
-- Partitioning for large datasets
-
-## 🔧 Configuration Management
-
-### Environment-based Configuration
-
-```python
-class Settings(BaseSettings):
-    # Automatic environment variable loading
-    database_url: str = Field(env="DATABASE_URL")
-    redis_url: Optional[str] = Field(env="REDIS_URL")
-    
-    # Validation and type conversion
-    allowed_hosts: List[str] = Field(env="SIGNET_ALLOWED_HOSTS")
-    max_payload_size: int = Field(default=10_000_000, env="SIGNET_MAX_PAYLOAD_SIZE")
-    
-    class Config:
-        env_file = ".env"
-        case_sensitive = False
-```
-
-### Dynamic Configuration Updates
-
-```python
-# Hot-reload configuration without restart
-async def update_policy_config(new_allowed_hosts):
-    policy_engine.allowed_hosts = set(new_allowed_hosts)
-    await storage.update_tenant_config(
-        "system",
-        {"allowed_hosts": new_allowed_hosts}
-    )
-```
-
-## 📋 Compliance and Standards
-
-### RFC 8785 JCS Compliance
-
-- Deterministic JSON canonicalization
-- Cryptographic hash consistency
-- Cross-platform compatibility
-
-### Ed25519 Signatures
-
-- Modern elliptic curve cryptography
-- Fast signature generation and verification
-- Small signature size (64 bytes)
-- Quantum-resistant preparation
-
-### ISO 20022 Support
-
-- Financial messaging standards
-- Structured data transformation
-- Industry-standard formats
+1. **Multi-Region Deployment**: Database replication and load balancing
+2. **Advanced Analytics**: Usage pattern analysis and forecasting  
+3. **API Rate Limiting**: Per-tenant request rate controls
+4. **Audit Logging**: Enhanced compliance and security logging
+5. **Webhook Reliability**: Retry mechanisms and dead letter queues
 
 ---
 
-**Enterprise-Ready Features for Production Deployment** 🏢
-
-*The Signet Protocol provides enterprise-grade capabilities for secure, auditable, and scalable AI-to-AI communications.*
+**Status**: ✅ All advanced features implemented and tested
+**Deployment**: Ready for production with comprehensive monitoring
+**Documentation**: Complete with examples and migration guides

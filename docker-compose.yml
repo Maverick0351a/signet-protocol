@@ -1,53 +1,56 @@
 version: '3.8'
 
 services:
-  signet-protocol:
+  signet:
     build: .
     ports:
       - "8088:8088"
     environment:
-      - DATABASE_URL=postgresql://signet:signet@postgres:5432/signet
-      - REDIS_URL=redis://redis:6379
+      - SP_STORAGE=postgres
+      - SP_POSTGRES_URL=postgresql://signet:signet_password@postgres:5432/signet
+      - SP_API_KEYS={"demo_key":{"tenant":"demo","fallback_enabled":true,"fu_monthly_limit":10000}}
+      - SP_HEL_ALLOWLIST=postman-echo.com,httpbin.org
+      - SP_RESERVED_CONFIG=/app/reserved_production.json
     depends_on:
       - postgres
-      - redis
     volumes:
-      - ./logs:/app/logs
+      - ./reserved_production.json:/app/reserved_production.json:ro
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8088/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   postgres:
-    image: postgres:15
+    image: postgres:15-alpine
     environment:
       - POSTGRES_DB=signet
       - POSTGRES_USER=signet
-      - POSTGRES_PASSWORD=signet
+      - POSTGRES_PASSWORD=signet_password
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
     restart: unless-stopped
-
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U signet"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   prometheus:
     image: prom/prometheus:latest
     ports:
       - "9090:9090"
     volumes:
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
       - '--web.console.libraries=/etc/prometheus/console_libraries'
       - '--web.console.templates=/etc/prometheus/consoles'
-      - '--storage.tsdb.retention.time=200h'
       - '--web.enable-lifecycle'
     restart: unless-stopped
 
@@ -59,12 +62,11 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=admin
     volumes:
       - grafana_data:/var/lib/grafana
-      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
-      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
     restart: unless-stopped
 
 volumes:
   postgres_data:
-  redis_data:
   prometheus_data:
   grafana_data:

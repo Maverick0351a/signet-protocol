@@ -1,235 +1,228 @@
-# SR-1: Signet Receipt Specification
-
-**Version:** 1.0  
-**Status:** Production Ready  
-**Date:** January 2025
+# SR-1: Signet Receipt Specification v1.0
 
 ## Abstract
 
-This specification defines the Signet Receipt format for cryptographically verifiable audit trails in AI-to-AI communications. Signet Receipts provide immutable proof of data exchanges, transformations, and forwarding operations within the Trust Fabric.
+The Signet Receipt (SR-1) specification defines a cryptographically verifiable record format for AI-to-AI communications, enabling auditability, non-repudiation, and trust verification in autonomous agent systems.
 
-## 1. Introduction
+## 1. Overview
 
-Signet Receipts are cryptographically signed documents that provide:
-
-- **Immutable Audit Trails**: Tamper-evident records of AI interactions
-- **Cryptographic Integrity**: Ed25519 signatures ensure authenticity
-- **Hash-Chain Linking**: Sequential receipts form verifiable chains
-- **Content Verification**: SHA-256 hashes prove data integrity
+A Signet Receipt provides cryptographic proof that:
+- A specific payload was processed and transformed
+- The transformation followed declared policies
+- The result was forwarded to authorized endpoints
+- All operations occurred at a specific time with full traceability
 
 ## 2. Receipt Structure
 
 ### 2.1 Core Fields
 
-Every Signet Receipt MUST contain the following fields:
-
 ```json
 {
-  "receipt_id": "receipt-abc123def456",
-  "trace_id": "signet-789xyz012",
-  "ts": "2025-01-27T12:00:00.000Z",
-  "cid": "sha256:content-hash-hex",
-  "receipt_hash": "sha256:receipt-hash-hex",
-  "hop": 1,
-  "signature": "base64-encoded-ed25519-signature"
-}
-```
-
-### 2.2 Field Definitions
-
-- **receipt_id**: Unique identifier for this receipt (string)
-- **trace_id**: Trace identifier linking related operations (string)
-- **ts**: ISO 8601 timestamp in UTC (string)
-- **cid**: Content Identifier - SHA-256 hash of payload (string)
-- **receipt_hash**: SHA-256 hash of canonical receipt data (string)
-- **hop**: Sequence number in processing chain (integer)
-- **signature**: Ed25519 signature of canonical receipt (string)
-
-### 2.3 Optional Fields
-
-Receipts MAY include additional metadata:
-
-```json
-{
-  "payload_type": "openai.tooluse.invoice.v1",
-  "target_type": "invoice.iso20022.v1",
-  "api_key": "tenant-identifier",
-  "metadata": {
-    "custom_field": "value"
+  "trace_id": "string",           // Unique identifier for the exchange chain
+  "hop": "integer",               // Sequential hop number in the chain
+  "ts": "ISO8601",               // RFC3339 timestamp (UTC)
+  "tenant": "string",            // Tenant identifier
+  "cid": "sha256:hex",           // Content identifier of normalized payload
+  "canon": "string",             // JCS-canonicalized payload
+  "algo": "sha256",              // Hash algorithm used
+  "prev_receipt_hash": "string", // Hash of previous receipt (null for first)
+  "receipt_hash": "string",      // Hash of this receipt
+  "policy": {                    // Policy evaluation result
+    "engine": "HEL",
+    "allowed": "boolean",
+    "reason": "string"
   }
 }
 ```
 
-## 3. Cryptographic Operations
-
-### 3.1 JSON Canonicalization
-
-All JSON data MUST be canonicalized according to RFC 8785 (JCS) before hashing or signing:
-
-1. Remove signature field if present
-2. Sort object keys lexicographically
-3. Use minimal JSON representation (no whitespace)
-4. Ensure ASCII encoding
-
-### 3.2 Content Hash Computation
-
-```python
-def compute_content_hash(payload):
-    canonical = json.dumps(payload, separators=(',', ':'), sort_keys=True)
-    hash_obj = hashlib.sha256(canonical.encode('utf-8'))
-    return f"sha256:{hash_obj.hexdigest()}"
-```
-
-### 3.3 Receipt Hash Computation
-
-```python
-def compute_receipt_hash(receipt_data):
-    # Remove signature field
-    receipt_copy = {k: v for k, v in receipt_data.items() if k != 'signature'}
-    canonical = json.dumps(receipt_copy, separators=(',', ':'), sort_keys=True)
-    hash_obj = hashlib.sha256(canonical.encode('utf-8'))
-    return f"sha256:{hash_obj.hexdigest()}"
-```
-
-### 3.4 Digital Signatures
-
-Signet Receipts use Ed25519 digital signatures:
-
-1. Canonicalize receipt data (excluding signature)
-2. Sign canonical bytes with Ed25519 private key
-3. Encode signature as base64
-4. Add signature field to receipt
-
-## 4. Verification Process
-
-### 4.1 Single Receipt Verification
-
-```python
-def verify_receipt(receipt, public_key):
-    # Extract signature
-    signature = receipt.pop('signature')
-    
-    # Canonicalize remaining data
-    canonical = json.dumps(receipt, separators=(',', ':'), sort_keys=True)
-    
-    # Verify signature
-    try:
-        public_key.verify(base64.b64decode(signature), canonical.encode('utf-8'))
-        return True
-    except InvalidSignature:
-        return False
-```
-
-### 4.2 Chain Verification
-
-For receipt chains, verify:
-
-1. Each individual receipt signature
-2. Sequential hop numbering
-3. Trace ID consistency
-4. Timestamp ordering
-
-## 5. Hash Chain Integrity
-
-### 5.1 Chain Structure
-
-Receipts form hash-linked chains where each receipt references the previous:
-
-```
-Receipt 1 (hop=1) → Receipt 2 (hop=2) → Receipt 3 (hop=3)
-```
-
-### 5.2 Chain Validation
-
-- Hop numbers MUST increment by 1
-- Trace IDs MUST be consistent
-- Timestamps MUST be non-decreasing
-
-## 6. Security Considerations
-
-### 6.1 Key Management
-
-- Use secure key generation for Ed25519 keys
-- Protect private keys with appropriate access controls
-- Implement key rotation procedures
-- Distribute public keys via JWKS endpoints
-
-### 6.2 Timestamp Security
-
-- Use UTC timestamps to avoid timezone issues
-- Implement clock synchronization
-- Consider timestamp tolerance for verification
-
-### 6.3 Hash Collision Resistance
-
-- SHA-256 provides 128-bit security level
-- Monitor for cryptographic advances
-- Plan for hash algorithm migration
-
-## 7. Implementation Guidelines
-
-### 7.1 Storage Requirements
-
-- Store receipts in tamper-evident storage
-- Implement backup and recovery procedures
-- Consider long-term archival requirements
-
-### 7.2 Performance Considerations
-
-- Batch verification for large receipt sets
-- Cache public keys to reduce lookups
-- Use streaming for large audit exports
-
-### 7.3 Error Handling
-
-- Graceful degradation for verification failures
-- Detailed error reporting for debugging
-- Audit logging for security events
-
-## 8. Examples
-
-### 8.1 Complete Receipt
+### 2.2 Extended Fields (Optional)
 
 ```json
 {
-  "receipt_id": "receipt-f47ac10b58cc4372",
-  "trace_id": "signet-a1b2c3d4e5f6",
-  "ts": "2025-01-27T12:00:00.000Z",
-  "payload_type": "openai.tooluse.invoice.v1",
-  "target_type": "invoice.iso20022.v1",
-  "cid": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-  "receipt_hash": "sha256:d4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13ab35",
-  "hop": 1,
-  "api_key": "tenant-demo-key",
-  "signature": "MEUCIQDxKwwlJrlubAC7DgkEyAOb4CzMkjZKqTXiYzQzYjFmYwIgYzNjZjNjZjNjZjNjZjNjZjNjZjNjZjNjZjNjZjNjZjM="
+  "forwarded": {                 // Present if forwarding occurred
+    "url": "string",
+    "status_code": "integer",
+    "host": "string",
+    "pinned_ip": "string",
+    "response_size": "integer"
+  },
+  "fallback_used": "boolean",    // True if LLM repair was used
+  "fu_tokens": "integer",        // Fallback tokens consumed
+  "semantic_violations": ["string"] // Failed invariant checks
 }
 ```
 
-### 8.2 Verification Code
+## 3. Canonicalization (JCS)
 
-```python
-from signet_verify import verify_receipt
+### 3.1 Requirements
 
-# Verify receipt
-is_valid, reason = verify_receipt(receipt, public_key_pem)
-print(f"Receipt valid: {is_valid}, Reason: {reason}")
+Signet Receipts MUST use RFC 8785 JSON Canonicalization Scheme (JCS) with:
+
+- **Unicode NFC Normalization**: All strings normalized to Unicode NFC form
+- **Deterministic Key Ordering**: Object keys sorted lexicographically
+- **Minimal Whitespace**: No unnecessary spaces, newlines, or tabs
+- **Consistent Number Format**: Integers without decimals, floats with minimal precision
+
+### 3.2 Content Identifier (CID)
+
+```
+cid = "sha256:" + hex(sha256(jcs_canonicalize(payload)))
 ```
 
-## 9. Compliance
+### 3.3 Receipt Hash
 
-This specification ensures compliance with:
+```
+receipt_hash = "sha256:" + hex(sha256(jcs_canonicalize(receipt_without_hash)))
+```
 
-- **RFC 8785**: JSON Canonicalization Scheme
-- **RFC 8032**: EdDSA signature algorithms
-- **ISO 8601**: Date and time format
-- **FIPS 180-4**: SHA-256 hash function
+## 4. Chain Integrity
 
-## 10. Version History
+### 4.1 Chain Rules
 
-- **1.0** (January 2025): Initial production specification
+1. **Genesis Receipt**: `prev_receipt_hash` is `null`
+2. **Subsequent Receipts**: `prev_receipt_hash` MUST equal the `receipt_hash` of the previous receipt
+3. **Hop Sequence**: `hop` MUST increment by 1 from previous receipt
+4. **Trace Consistency**: `trace_id` MUST remain constant within a chain
+
+### 4.2 Conflict Detection
+
+Implementations MUST reject receipts that would create:
+- Duplicate hop numbers within a trace
+- Invalid previous hash references
+- Non-sequential hop progression
+
+## 5. Verification
+
+### 5.1 Receipt Verification Algorithm
+
+```python
+def verify_receipt(receipt, previous_receipt=None):
+    # 1. Verify receipt hash
+    computed_hash = compute_receipt_hash(receipt)
+    if receipt["receipt_hash"] != computed_hash:
+        return False, "Invalid receipt hash"
+    
+    # 2. Verify chain linkage
+    if previous_receipt:
+        if receipt["prev_receipt_hash"] != previous_receipt["receipt_hash"]:
+            return False, "Broken chain linkage"
+        if receipt["hop"] != previous_receipt["hop"] + 1:
+            return False, "Invalid hop sequence"
+    
+    # 3. Verify content identifier
+    computed_cid = compute_cid(receipt["canon"])
+    if receipt["cid"] != computed_cid:
+        return False, "Invalid content identifier"
+    
+    return True, "Valid"
+```
+
+### 5.2 Chain Verification
+
+```python
+def verify_chain(receipts):
+    if not receipts:
+        return True, "Empty chain"
+    
+    # Verify genesis
+    if receipts[0]["prev_receipt_hash"] is not None:
+        return False, "Invalid genesis receipt"
+    
+    # Verify each receipt and linkage
+    for i, receipt in enumerate(receipts):
+        prev = receipts[i-1] if i > 0 else None
+        valid, reason = verify_receipt(receipt, prev)
+        if not valid:
+            return False, f"Receipt {i}: {reason}"
+    
+    return True, "Valid chain"
+```
+
+## 6. Export Bundle Format
+
+### 6.1 Signed Export Structure
+
+```json
+{
+  "trace_id": "string",
+  "chain": [/* array of receipts */],
+  "exported_at": "ISO8601",
+  "bundle_cid": "sha256:hex",
+  "signature": "base64",
+  "kid": "string"
+}
+```
+
+### 6.2 Signature Generation
+
+```
+bundle_canonical = jcs_canonicalize({
+  "trace_id": trace_id,
+  "chain": chain,
+  "exported_at": exported_at
+})
+bundle_cid = "sha256:" + hex(sha256(bundle_canonical))
+signature = base64(ed25519_sign(private_key, bundle_cid))
+```
+
+## 7. Security Considerations
+
+### 7.1 Hash Algorithm Requirements
+
+- MUST use SHA-256 for all hash operations
+- MUST use Ed25519 for digital signatures
+- Key rotation MUST be supported via JWKS
+
+### 7.2 Timestamp Validation
+
+- Timestamps MUST be in UTC
+- Implementations SHOULD reject receipts with timestamps too far in the future
+- Clock skew tolerance SHOULD be configurable (default: 5 minutes)
+
+### 7.3 Chain Length Limits
+
+- Implementations SHOULD limit chain length to prevent DoS attacks
+- Recommended maximum: 1000 receipts per trace
+
+## 8. Implementation Requirements
+
+### 8.1 MUST Requirements
+
+- JCS canonicalization per RFC 8785
+- SHA-256 hash algorithm
+- Ed25519 signature algorithm
+- Chain integrity validation
+- Export bundle generation
+
+### 8.2 SHOULD Requirements
+
+- JWKS endpoint for public key distribution
+- Configurable timestamp validation
+- Chain length limits
+- Concurrent access protection
+
+### 8.3 MAY Requirements
+
+- Alternative hash algorithms (with negotiation)
+- Compressed export formats
+- Batch verification optimizations
+
+## 9. IANA Considerations
+
+This specification defines:
+- Media type: `application/vnd.signet.receipt+json`
+- URI scheme: `signet:` for receipt references
+- Well-known URI: `/.well-known/signet-jwks.json`
+
+## 10. References
+
+- RFC 8785: JSON Canonicalization Scheme (JCS)
+- RFC 8037: CFRG Elliptic Curve Diffie-Hellman (ECDH) and Signatures in JSON Object Signing and Encryption (JOSE)
+- RFC 7517: JSON Web Key (JWK)
 
 ---
 
-**Authors:** OdinSecure.AI  
-**Contact:** [GitHub Issues](https://github.com/Maverick0351a/signet-protocol/issues)  
-**License:** MIT
+**Status**: Draft Specification  
+**Version**: 1.0  
+**Date**: 2025-01-27  
+**Authors**: Signet Protocol Contributors

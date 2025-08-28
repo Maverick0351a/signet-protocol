@@ -1,227 +1,259 @@
-#!/usr/bin/env python3
-"""
-Signet Protocol Billing Management
-
-Enterprise-grade billing with token-level metering,
-reserved capacity, tiered pricing, and Stripe integration.
-"""
-
-import time
-from typing import Dict, Any, Optional, List, NamedTuple
+import os, time, json
+from typing import Optional, Dict, Any, Tuple
 from datetime import datetime, timezone
+from prometheus_client import Counter, Gauge
+from ..settings import load_settings
+from .storage import Storage
 
-from .storage import StorageBackend
+billing_enqueued = Counter("signet_billing_enqueued_total", "Billing events enqueued", ["type"])
+reserved_capacity_gauge = Gauge("signet_reserved_capacity", "Reserved capacity by tenant and type", ["tenant", "type"])
+overage_charges = Counter("signet_overage_charges_total", "Overage charges applied", ["tenant", "type", "tier"])
 
-
-class BillingResult(NamedTuple):
-    """Result of billing check"""
-    allowed: bool
-    reason: Optional[str] = None
-    remaining_vex: Optional[int] = None
-    remaining_fu: Optional[int] = None
-
-
-class UsageRecord(NamedTuple):
-    """Usage record for billing"""
-    tenant_id: str
-    usage_type: str  # 'vex' or 'fu'
-    amount: int
-    timestamp: datetime
-    metadata: Optional[Dict[str, Any]] = None
-
-
-class BillingManager:
-    """Manages billing, metering, and usage tracking"""
+class ReservedCapacity:
+    """Configuration for reserved monthly capacity and overage tiers"""
     
-    def __init__(self, storage: StorageBackend):
+    def __init__(self, config: Dict[str, Any]):
+        self.vex_reserved = config.get("vex_reserved", 0)
+        self.fu_reserved = config.get("fu_reserved", 0)
+        
+        # Overage tiers: list of {"threshold": int, "price_per_unit": float, "stripe_item": str}
+        self.vex_overage_tiers = config.get("vex_overage_tiers", [])
+        self.fu_overage_tiers = config.get("fu_overage_tiers", [])
+        
+        # Stripe items for reserved capacity billing
+        self.vex_reserved_item = config.get("vex_reserved_item")
+        self.fu_reserved_item = config.get("fu_reserved_item")
+
+class UsageTracker:
+    """Track monthly usage against reserved capacity"""
+    
+    def __init__(self, storage: Storage):
         self.storage = storage
     
-    async def check_limits(self, api_key: str) -> BillingResult:
-        """Check if tenant is within billing limits"""
-        try:
-            # Get tenant configuration
-            tenant_config = await self.storage.get_tenant_config(api_key)
-            if not tenant_config:
-                # Default limits for new tenants
-                tenant_config = {
-                    'vex_limit': 1000,
-                    'fu_limit': 5000,
-                    'billing_enabled': True
-                }
-            
-            if not tenant_config.get('billing_enabled', True):
-                return BillingResult(allowed=True)
-            
-            # Get current usage
-            current_usage = await self.storage.get_current_usage(api_key)
-            
-            vex_used = current_usage.get('vex_used', 0)
-            fu_used = current_usage.get('fu_used', 0)
-            
-            vex_limit = tenant_config.get('vex_limit', 1000)
-            fu_limit = tenant_config.get('fu_limit', 5000)
-            
-            # Check VEx limit
-            if vex_used >= vex_limit:
-                return BillingResult(
-                    allowed=False,
-                    reason=f"VEx limit exceeded: {vex_used}/{vex_limit}"
-                )
-            
-            # Check FU limit
-            if fu_used >= fu_limit:
-                return BillingResult(
-                    allowed=False,
-                    reason=f"FU limit exceeded: {fu_used}/{fu_limit}"
-                )
-            
-            return BillingResult(
-                allowed=True,
-                remaining_vex=vex_limit - vex_used,
-                remaining_fu=fu_limit - fu_used
-            )
-            
-        except Exception as e:
-            # Log error but allow request (fail open for billing)
-            print(f"Billing check error: {e}")
-            return BillingResult(allowed=True, reason="billing_error")
-    
-    async def record_usage(
-        self,
-        api_key: str,
-        usage_type: str,
-        amount: int,
-        metadata: Optional[Dict[str, Any]] = None
-    ) -> None:
-        """Record usage for billing"""
-        usage_record = UsageRecord(
-            tenant_id=api_key,
-            usage_type=usage_type,
-            amount=amount,
-            timestamp=datetime.now(timezone.utc),
-            metadata=metadata
-        )
-        
-        await self.storage.record_usage(usage_record)
-    
-    async def get_usage_summary(
-        self,
-        api_key: str,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None
-    ) -> Dict[str, Any]:
-        """Get usage summary for tenant"""
-        return await self.storage.get_usage_summary(api_key, start_date, end_date)
-    
-    async def calculate_charges(
-        self,
-        api_key: str,
-        billing_period_start: datetime,
-        billing_period_end: datetime
-    ) -> Dict[str, Any]:
-        """Calculate charges for billing period"""
-        # Get tenant configuration
-        tenant_config = await self.storage.get_tenant_config(api_key)
-        if not tenant_config:
-            return {'total_charges': 0, 'line_items': []}
-        
-        # Get usage for period
-        usage_summary = await self.get_usage_summary(
-            api_key, billing_period_start, billing_period_end
-        )
-        
-        line_items = []
-        total_charges = 0
-        
-        # Calculate VEx charges
-        vex_used = usage_summary.get('vex_used', 0)
-        vex_reserved = tenant_config.get('vex_reserved', 0)
-        vex_overage = max(0, vex_used - vex_reserved)
-        
-        if vex_overage > 0:
-            vex_price = self._get_tiered_price(
-                vex_overage,
-                tenant_config.get('vex_overage_tiers', [])
-            )
-            vex_charges = vex_overage * vex_price
-            total_charges += vex_charges
-            
-            line_items.append({
-                'type': 'vex_overage',
-                'quantity': vex_overage,
-                'unit_price': vex_price,
-                'total': vex_charges
-            })
-        
-        # Calculate FU charges
-        fu_used = usage_summary.get('fu_used', 0)
-        fu_reserved = tenant_config.get('fu_reserved', 0)
-        fu_overage = max(0, fu_used - fu_reserved)
-        
-        if fu_overage > 0:
-            fu_price = self._get_tiered_price(
-                fu_overage,
-                tenant_config.get('fu_overage_tiers', [])
-            )
-            fu_charges = fu_overage * fu_price
-            total_charges += fu_charges
-            
-            line_items.append({
-                'type': 'fu_overage',
-                'quantity': fu_overage,
-                'unit_price': fu_price,
-                'total': fu_charges
-            })
-        
+    def get_monthly_usage(self, tenant: str, year: int, month: int) -> Dict[str, int]:
+        """Get VEx and FU usage for a specific month"""
+        # In a real implementation, this would query the usage_ledger table
+        # For now, return mock data
         return {
-            'total_charges': total_charges,
-            'line_items': line_items,
-            'usage_summary': usage_summary,
-            'billing_period': {
-                'start': billing_period_start.isoformat(),
-                'end': billing_period_end.isoformat()
-            }
+            "vex_used": 0,
+            "fu_used": 0
         }
     
-    def _get_tiered_price(self, quantity: int, tiers: List[Dict[str, Any]]) -> float:
-        """Calculate tiered pricing"""
-        if not tiers:
-            return 0.01  # Default price
+    def calculate_overage(self, reserved: ReservedCapacity, usage: Dict[str, int]) -> Dict[str, Any]:
+        """Calculate overage charges based on tiers"""
+        vex_overage = max(0, usage["vex_used"] - reserved.vex_reserved)
+        fu_overage = max(0, usage["fu_used"] - reserved.fu_reserved)
         
-        # Find applicable tier
-        for tier in sorted(tiers, key=lambda x: x.get('threshold', 0)):
-            if quantity >= tier.get('threshold', 0):
-                return tier.get('price_per_unit', 0.01)
+        vex_charges = self._calculate_tier_charges(vex_overage, reserved.vex_overage_tiers)
+        fu_charges = self._calculate_tier_charges(fu_overage, reserved.fu_overage_tiers)
         
-        return tiers[0].get('price_per_unit', 0.01)
+        return {
+            "vex_overage": vex_overage,
+            "fu_overage": fu_overage,
+            "vex_charges": vex_charges,
+            "fu_charges": fu_charges,
+            "total_overage_cost": sum(c["cost"] for c in vex_charges + fu_charges)
+        }
     
-    async def create_stripe_invoice(
-        self,
-        api_key: str,
-        charges: Dict[str, Any],
-        stripe_customer_id: str
-    ) -> Optional[str]:
-        """Create Stripe invoice (requires Stripe integration)"""
-        try:
+    def _calculate_tier_charges(self, overage_units: int, tiers: list) -> list:
+        """Calculate charges across multiple pricing tiers"""
+        if not overage_units or not tiers:
+            return []
+        
+        charges = []
+        remaining = overage_units
+        
+        for tier in sorted(tiers, key=lambda t: t["threshold"]):
+            if remaining <= 0:
+                break
+                
+            tier_units = min(remaining, tier["threshold"])
+            if tier_units > 0:
+                charges.append({
+                    "tier_threshold": tier["threshold"],
+                    "units": tier_units,
+                    "price_per_unit": tier["price_per_unit"],
+                    "cost": tier_units * tier["price_per_unit"],
+                    "stripe_item": tier["stripe_item"]
+                })
+                remaining -= tier_units
+        
+        # Handle unlimited tier (remaining units)
+        if remaining > 0 and tiers:
+            last_tier = tiers[-1]
+            charges.append({
+                "tier_threshold": "unlimited",
+                "units": remaining,
+                "price_per_unit": last_tier["price_per_unit"],
+                "cost": remaining * last_tier["price_per_unit"],
+                "stripe_item": last_tier["stripe_item"]
+            })
+        
+        return charges
+
+class BillingBuffer:
+    def __init__(self, storage: Storage, stripe_api_key: Optional[str], reserved_config_path: Optional[str] = None):
+        self.storage = storage
+        self.enabled = bool(stripe_api_key)
+        self.usage_tracker = UsageTracker(storage)
+        
+        if self.enabled:
             import stripe
+            stripe.api_key = stripe_api_key
+            self.stripe = stripe
+        else:
+            self.stripe = None
+        
+        # Load reserved capacity configuration
+        self.reserved_configs = self._load_reserved_configs(reserved_config_path)
+    
+    def _load_reserved_configs(self, config_path: Optional[str]) -> Dict[str, ReservedCapacity]:
+        """Load reserved capacity configurations from file"""
+        if not config_path or not os.path.exists(config_path):
+            return {}
+        
+        try:
+            with open(config_path, 'r') as f:
+                configs = json.load(f)
             
-            # Create invoice items
-            for item in charges['line_items']:
-                stripe.InvoiceItem.create(
-                    customer=stripe_customer_id,
-                    amount=int(item['total'] * 100),  # Convert to cents
-                    currency='usd',
-                    description=f"Signet {item['type']}: {item['quantity']} units"
-                )
+            result = {}
+            for tenant, config in configs.items():
+                result[tenant] = ReservedCapacity(config)
+                
+                # Update Prometheus metrics
+                reserved_capacity_gauge.labels(tenant=tenant, type="vex").set(config.get("vex_reserved", 0))
+                reserved_capacity_gauge.labels(tenant=tenant, type="fu").set(config.get("fu_reserved", 0))
             
-            # Create and finalize invoice
-            invoice = stripe.Invoice.create(
-                customer=stripe_customer_id,
-                auto_advance=True
-            )
-            
-            return invoice.id
-            
+            return result
         except Exception as e:
-            print(f"Stripe invoice creation failed: {e}")
-            return None
+            print(f"Warning: Failed to load reserved capacity config: {e}")
+            return {}
+
+    def enqueue_vex(self, api_key: str, stripe_item: Optional[str], units: int = 1, tenant: Optional[str] = None):
+        if not (self.enabled and stripe_item):
+            return
+        
+        # Check for reserved capacity and overage billing
+        if tenant and tenant in self.reserved_configs:
+            billing_item, billing_units = self._calculate_vex_billing(tenant, units)
+            if billing_item:
+                self.storage.enqueue_billing(api_key, billing_item, billing_units, int(time.time()))
+        else:
+            # Standard per-unit billing
+            self.storage.enqueue_billing(api_key, stripe_item, units, int(time.time()))
+        
+        billing_enqueued.labels(type="vex").inc()
+
+    def enqueue_fu(self, api_key: str, stripe_item: Optional[str], tokens: int, tenant: Optional[str] = None):
+        if not (self.enabled and stripe_item and tokens > 0):
+            return
+        
+        # Check for reserved capacity and overage billing
+        if tenant and tenant in self.reserved_configs:
+            billing_item, billing_units = self._calculate_fu_billing(tenant, tokens)
+            if billing_item:
+                self.storage.enqueue_billing(api_key, billing_item, billing_units, int(time.time()))
+        else:
+            # Standard per-token billing
+            self.storage.enqueue_billing(api_key, stripe_item, tokens, int(time.time()))
+        
+        billing_enqueued.labels(type="fu").inc()
+
+    def _calculate_vex_billing(self, tenant: str, units: int) -> Tuple[Optional[str], int]:
+        """Calculate VEx billing considering reserved capacity"""
+        reserved = self.reserved_configs.get(tenant)
+        if not reserved:
+            return None, 0
+        
+        now = datetime.now(timezone.utc)
+        usage = self.usage_tracker.get_monthly_usage(tenant, now.year, now.month)
+        
+        # If within reserved capacity, no additional billing
+        if usage["vex_used"] + units <= reserved.vex_reserved:
+            return None, 0
+        
+        # Calculate overage
+        overage_units = max(0, (usage["vex_used"] + units) - reserved.vex_reserved)
+        if overage_units > 0:
+            # Find appropriate tier
+            for tier in reserved.vex_overage_tiers:
+                if overage_units <= tier["threshold"]:
+                    overage_charges.labels(tenant=tenant, type="vex", tier=tier["threshold"]).inc()
+                    return tier["stripe_item"], overage_units
+        
+        return None, 0
+
+    def _calculate_fu_billing(self, tenant: str, tokens: int) -> Tuple[Optional[str], int]:
+        """Calculate FU billing considering reserved capacity"""
+        reserved = self.reserved_configs.get(tenant)
+        if not reserved:
+            return None, 0
+        
+        now = datetime.now(timezone.utc)
+        usage = self.usage_tracker.get_monthly_usage(tenant, now.year, now.month)
+        
+        # If within reserved capacity, no additional billing
+        if usage["fu_used"] + tokens <= reserved.fu_reserved:
+            return None, 0
+        
+        # Calculate overage
+        overage_tokens = max(0, (usage["fu_used"] + tokens) - reserved.fu_reserved)
+        if overage_tokens > 0:
+            # Find appropriate tier
+            for tier in reserved.fu_overage_tiers:
+                if overage_tokens <= tier["threshold"]:
+                    overage_charges.labels(tenant=tenant, type="fu", tier=tier["threshold"]).inc()
+                    return tier["stripe_item"], overage_tokens
+        
+        return None, 0
+
+    def generate_monthly_report(self, tenant: str, year: int, month: int) -> Dict[str, Any]:
+        """Generate monthly usage and billing report"""
+        if tenant not in self.reserved_configs:
+            return {"error": "No reserved capacity configured for tenant"}
+        
+        reserved = self.reserved_configs[tenant]
+        usage = self.usage_tracker.get_monthly_usage(tenant, year, month)
+        overage_calc = self.usage_tracker.calculate_overage(reserved, usage)
+        
+        return {
+            "tenant": tenant,
+            "period": f"{year}-{month:02d}",
+            "reserved_capacity": {
+                "vex": reserved.vex_reserved,
+                "fu": reserved.fu_reserved
+            },
+            "actual_usage": usage,
+            "overage_analysis": overage_calc,
+            "within_reserved": {
+                "vex": usage["vex_used"] <= reserved.vex_reserved,
+                "fu": usage["fu_used"] <= reserved.fu_reserved
+            }
+        }
+
+    def flush_once(self, batch_size: int = 100, max_retries: int = 5):
+        if not self.enabled:
+            return {"flushed": 0, "enabled": False}
+        items = self.storage.dequeue_billing_batch(batch_size)
+        if not items:
+            return {"flushed": 0, "enabled": True}
+        ok_ids, retry_ids = [], []
+        for it in items:
+            try:
+                self.stripe.UsageRecord.create(
+                    quantity=it["units"],
+                    timestamp=it["ts"],
+                    action="increment",
+                    subscription_item=it["stripe_item"]
+                )
+                ok_ids.append(it["id"])
+            except Exception:
+                if it["retries"] + 1 >= max_retries:
+                    ok_ids.append(it["id"])  # drop
+                else:
+                    retry_ids.append(it["id"])
+        if ok_ids:
+            self.storage.delete_billing_items(ok_ids)
+        if retry_ids:
+            self.storage.bump_billing_retries(retry_ids)
+        return {"flushed": len(ok_ids), "retries": len(retry_ids), "enabled": True}

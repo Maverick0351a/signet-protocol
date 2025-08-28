@@ -1,0 +1,78 @@
+{
+  "acme_corp": {
+    "vex_reserved": 100000,
+    "fu_reserved": 500000,
+    "vex_overage_tiers": [
+      {
+        "threshold": 50000,
+        "price_per_unit": 0.005,
+        "stripe_item": "price_signet_vex_tier1_005"
+      },
+      {
+        "threshold": 100000,
+        "price_per_unit": 0.008,
+        "stripe_item": "price_signet_vex_tier2_008"
+      }
+    ],
+    "fu_overage_tiers": [
+      {
+        "threshold": 250000,
+        "price_per_unit": 0.001,
+        "stripe_item": "price_signet_fu_tier1_001"
+      },
+      {
+        "threshold": 500000,
+        "price_per_unit": 0.0008,
+        "stripe_item": "price_signet_fu_tier2_0008"
+      }
+    ]
+  },
+  "startup_customer": {
+    "vex_reserved": 10000,
+    "fu_reserved": 50000,
+    "subscription_plan": "price_signet_starter_monthly_499",
+    "vex_overage_tiers": [
+      {
+        "threshold": 5000,
+        "price_per_unit": 0.005,
+        "stripe_item": "price_signet_vex_tier1_005"
+      }
+    ],
+    "fu_overage_tiers": [
+      {
+        "threshold": 25000,
+        "price_per_unit": 0.001,
+        "stripe_item": "price_signet_fu_tier1_001"
+      }
+    ]
+  },
+  "enterprise_customer": {
+    "vex_reserved": 1000000,
+    "fu_reserved": 5000000,
+    "subscription_plan": "price_signet_enterprise_monthly_9999",
+    "vex_overage_tiers": [
+      {
+        "threshold": 500000,
+        "price_per_unit": 0.005,
+        "stripe_item": "price_signet_vex_tier1_005"
+      },
+      {
+        "threshold": 1000000,
+        "price_per_unit": 0.008,
+        "stripe_item": "price_signet_vex_tier2_008"
+      }
+    ],
+    "fu_overage_tiers": [
+      {
+        "threshold": 2500000,
+        "price_per_unit": 0.001,
+        "stripe_item": "price_signet_fu_tier1_001"
+      },
+      {
+        "threshold": 5000000,
+        "price_per_unit": 0.0008,
+        "stripe_item": "price_signet_fu_tier2_0008"
+      }
+    ]
+  }
+}

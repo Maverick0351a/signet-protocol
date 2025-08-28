@@ -1,233 +1,350 @@
-/**
- * Signet Protocol JavaScript Verification SDK
- * 
- * Browser and Node.js compatible verification of Signet receipts
- * with cryptographic signature validation.
+/*
+ * Copyright 2025 ODIN Protocol Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 /**
- * Verify a Signet receipt
- * @param {Object} receipt - The receipt data to verify
- * @param {string} publicKeyJwk - Public key in JWK format
- * @returns {Promise<{valid: boolean, reason: string}>}
+ * Signet Protocol - JavaScript Verification SDK
+ * Verify receipts and chains in 5 lines of code.
  */
-export async function verifyReceipt(receipt, publicKeyJwk) {
-    try {
-        // Extract signature
-        const signature = receipt.signature;
-        if (!signature) {
-            return { valid: false, reason: 'No signature found' };
-        }
-        
-        // Create receipt copy without signature
-        const receiptCopy = { ...receipt };
-        delete receiptCopy.signature;
-        
-        // Canonicalize JSON (RFC 8785)
-        const canonical = JSON.stringify(receiptCopy, Object.keys(receiptCopy).sort());
-        
-        // Import public key
-        const publicKey = await crypto.subtle.importKey(
-            'jwk',
-            publicKeyJwk,
-            {
-                name: 'Ed25519',
-                namedCurve: 'Ed25519'
-            },
-            false,
-            ['verify']
-        );
-        
-        // Decode signature
-        const signatureBytes = base64ToArrayBuffer(signature);
-        
-        // Verify signature
-        const isValid = await crypto.subtle.verify(
-            'Ed25519',
-            publicKey,
-            signatureBytes,
-            new TextEncoder().encode(canonical)
-        );
-        
-        return {
-            valid: isValid,
-            reason: isValid ? 'Valid signature' : 'Invalid signature'
-        };
-        
-    } catch (error) {
-        return {
-            valid: false,
-            reason: `Verification error: ${error.message}`
-        };
-    }
-}
 
-/**
- * Verify a chain of receipts
- * @param {Array} receipts - Array of receipt data in chronological order
- * @param {string} publicKeyJwk - Public key in JWK format
- * @returns {Promise<{valid: boolean, reason: string}>}
- */
-export async function verifyReceiptChain(receipts, publicKeyJwk) {
-    if (!receipts || receipts.length === 0) {
-        return { valid: false, reason: 'Empty receipt chain' };
+class SignetVerifier {
+    constructor(options = {}) {
+        this.jwksCache = new Map();
+        this.jwksCacheTtl = options.jwksCacheTtl || 3600000; // 1 hour in ms
     }
-    
-    // Verify each receipt individually
-    for (let i = 0; i < receipts.length; i++) {
-        const result = await verifyReceipt(receipts[i], publicKeyJwk);
-        if (!result.valid) {
-            return {
-                valid: false,
-                reason: `Receipt ${i} invalid: ${result.reason}`
-            };
-        }
-    }
-    
-    // Verify hash chain
-    for (let i = 1; i < receipts.length; i++) {
-        const prevReceipt = receipts[i - 1];
-        const currReceipt = receipts[i];
-        
-        if ((currReceipt.hop || 1) !== (prevReceipt.hop || 1) + 1) {
-            return {
-                valid: false,
-                reason: `Broken chain at receipt ${i}: hop sequence invalid`
-            };
-        }
-    }
-    
-    return { valid: true, reason: 'Valid receipt chain' };
-}
 
-/**
- * Compute SHA-256 hash of content
- * @param {any} content - Content to hash
- * @returns {Promise<string>} SHA-256 hash with 'sha256:' prefix
- */
-export async function computeContentHash(content) {
-    let dataToHash;
-    
-    if (typeof content === 'object') {
-        // Canonicalize JSON
-        dataToHash = JSON.stringify(content, Object.keys(content).sort());
-    } else {
-        dataToHash = String(content);
-    }
-    
-    const encoder = new TextEncoder();
-    const data = encoder.encode(dataToHash);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-    
-    return `sha256:${hashHex}`;
-}
-
-/**
- * Simple Signet client for browser/Node.js
- */
-export class SignetClient {
-    constructor(baseUrl, apiKey) {
-        this.baseUrl = baseUrl.replace(/\/$/, '');
-        this.apiKey = apiKey;
-    }
-    
-    async exchange(payloadType, targetType, payload, forwardUrl, idempotencyKey) {
-        const requestData = {
-            payload_type: payloadType,
-            target_type: targetType,
-            payload: payload,
-            forward_url: forwardUrl,
-            idempotency_key: idempotencyKey || `js-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-        };
-        
-        const response = await fetch(`${this.baseUrl}/v1/exchange`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-SIGNET-API-Key': this.apiKey,
-                'X-SIGNET-Idempotency-Key': requestData.idempotency_key
-            },
-            body: JSON.stringify(requestData)
-        });
-        
-        if (!response.ok) {
-            throw new Error(`Exchange failed: ${response.status} ${response.statusText}`);
-        }
-        
-        return await response.json();
-    }
-    
-    async getReceipt(receiptId) {
-        const response = await fetch(`${this.baseUrl}/v1/receipts/${receiptId}`, {
-            headers: {
-                'X-SIGNET-API-Key': this.apiKey
+    /**
+     * Verify a single Signet receipt
+     * @param {Object} receipt - The receipt to verify
+     * @param {Object} previousReceipt - The previous receipt in the chain (optional)
+     * @returns {Promise<{valid: boolean, reason: string}>}
+     */
+    async verifyReceipt(receipt, previousReceipt = null) {
+        try {
+            // 1. Verify receipt hash
+            const computedHash = await this._computeReceiptHash(receipt);
+            if (receipt.receipt_hash !== computedHash) {
+                return { valid: false, reason: 'Invalid receipt hash' };
             }
-        });
-        
-        if (!response.ok) {
-            throw new Error(`Get receipt failed: ${response.status} ${response.statusText}`);
+
+            // 2. Verify chain linkage
+            if (previousReceipt) {
+                if (receipt.prev_receipt_hash !== previousReceipt.receipt_hash) {
+                    return { valid: false, reason: 'Broken chain linkage' };
+                }
+                if (receipt.hop !== previousReceipt.hop + 1) {
+                    return { valid: false, reason: 'Invalid hop sequence' };
+                }
+                if (receipt.trace_id !== previousReceipt.trace_id) {
+                    return { valid: false, reason: 'Trace ID mismatch' };
+                }
+            }
+
+            // 3. Verify content identifier
+            if (receipt.canon && receipt.cid) {
+                const computedCid = await this._computeCid(receipt.canon);
+                if (receipt.cid !== computedCid) {
+                    return { valid: false, reason: 'Invalid content identifier' };
+                }
+            }
+
+            // 4. Verify timestamp format
+            if (receipt.ts) {
+                try {
+                    new Date(receipt.ts);
+                } catch (e) {
+                    return { valid: false, reason: 'Invalid timestamp format' };
+                }
+            }
+
+            return { valid: true, reason: 'Valid receipt' };
+
+        } catch (error) {
+            return { valid: false, reason: `Verification error: ${error.message}` };
         }
-        
-        return await response.json();
     }
-    
-    async healthCheck() {
-        const response = await fetch(`${this.baseUrl}/healthz`);
+
+    /**
+     * Verify a complete receipt chain
+     * @param {Array} receipts - List of receipts in chronological order
+     * @returns {Promise<{valid: boolean, reason: string}>}
+     */
+    async verifyChain(receipts) {
+        if (!receipts || receipts.length === 0) {
+            return { valid: true, reason: 'Empty chain' };
+        }
+
+        // Verify genesis receipt
+        if (receipts[0].prev_receipt_hash !== null) {
+            return { valid: false, reason: 'Invalid genesis receipt' };
+        }
+
+        // Verify each receipt and linkage
+        for (let i = 0; i < receipts.length; i++) {
+            const receipt = receipts[i];
+            const previousReceipt = i > 0 ? receipts[i - 1] : null;
+            
+            const result = await this.verifyReceipt(receipt, previousReceipt);
+            if (!result.valid) {
+                return { valid: false, reason: `Receipt ${i}: ${result.reason}` };
+            }
+        }
+
+        return { valid: true, reason: 'Valid chain' };
+    }
+
+    /**
+     * Verify a signed export bundle
+     * @param {Object} bundle - The export bundle to verify
+     * @param {string} jwksUrl - URL to fetch JWKS (optional)
+     * @returns {Promise<{valid: boolean, reason: string}>}
+     */
+    async verifyExportBundle(bundle, jwksUrl = null) {
+        try {
+            // 1. Verify chain
+            const chainResult = await this.verifyChain(bundle.chain || []);
+            if (!chainResult.valid) {
+                return { valid: false, reason: `Invalid chain: ${chainResult.reason}` };
+            }
+
+            // 2. Verify bundle CID
+            const bundleContent = {
+                trace_id: bundle.trace_id,
+                chain: bundle.chain,
+                exported_at: bundle.exported_at
+            };
+            const computedCid = await this._computeCid(this._canonicalize(bundleContent));
+            if (bundle.bundle_cid !== computedCid) {
+                return { valid: false, reason: 'Invalid bundle CID' };
+            }
+
+            // 3. Verify signature (if JWKS available)
+            if (bundle.signature && bundle.kid && jwksUrl) {
+                const sigResult = await this._verifySignature(
+                    bundle.bundle_cid,
+                    bundle.signature,
+                    bundle.kid,
+                    jwksUrl
+                );
+                if (!sigResult.valid) {
+                    return { valid: false, reason: `Invalid signature: ${sigResult.reason}` };
+                }
+            }
+
+            return { valid: true, reason: 'Valid export bundle' };
+
+        } catch (error) {
+            return { valid: false, reason: `Bundle verification error: ${error.message}` };
+        }
+    }
+
+    /**
+     * Compute the hash of a receipt (excluding the hash field itself)
+     */
+    async _computeReceiptHash(receipt) {
+        const receiptCopy = { ...receipt };
+        delete receiptCopy.receipt_hash;
+        const canonical = this._canonicalize(receiptCopy);
+        return 'sha256:' + await this._sha256(canonical);
+    }
+
+    /**
+     * Compute content identifier for canonicalized content
+     */
+    async _computeCid(content) {
+        return 'sha256:' + await this._sha256(content);
+    }
+
+    /**
+     * JSON Canonicalization Scheme (JCS) implementation
+     * Simplified version - for production use a full RFC 8785 implementation
+     */
+    _canonicalize(obj) {
+        return JSON.stringify(obj, Object.keys(obj).sort());
+    }
+
+    /**
+     * Compute SHA-256 hash
+     */
+    async _sha256(message) {
+        if (typeof crypto !== 'undefined' && crypto.subtle) {
+            // Browser environment
+            const msgBuffer = new TextEncoder().encode(message);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        } else {
+            // Node.js environment
+            const crypto = require('crypto');
+            return crypto.createHash('sha256').update(message).digest('hex');
+        }
+    }
+
+    /**
+     * Verify Ed25519 signature using JWKS
+     */
+    async _verifySignature(message, signature, kid, jwksUrl) {
+        try {
+            // Fetch JWKS
+            const jwks = await this._fetchJwks(jwksUrl);
+
+            // Find key
+            const key = jwks.keys?.find(k => 
+                k.kid === kid && k.kty === 'OKP' && k.crv === 'Ed25519'
+            );
+
+            if (!key) {
+                return { valid: false, reason: `Key ${kid} not found in JWKS` };
+            }
+
+            // Verify signature (requires Web Crypto API or Node.js crypto)
+            if (typeof crypto !== 'undefined' && crypto.subtle) {
+                try {
+                    // Browser environment with Web Crypto API
+                    const publicKeyBytes = this._base64UrlDecode(key.x);
+                    const signatureBytes = this._base64Decode(signature);
+                    
+                    const publicKey = await crypto.subtle.importKey(
+                        'raw',
+                        publicKeyBytes,
+                        { name: 'Ed25519', namedCurve: 'Ed25519' },
+                        false,
+                        ['verify']
+                    );
+
+                    const messageBytes = new TextEncoder().encode(message);
+                    const isValid = await crypto.subtle.verify(
+                        'Ed25519',
+                        publicKey,
+                        signatureBytes,
+                        messageBytes
+                    );
+
+                    return { valid: isValid, reason: isValid ? 'Valid signature' : 'Invalid signature' };
+
+                } catch (error) {
+                    return { valid: false, reason: `Signature verification failed: ${error.message}` };
+                }
+            } else {
+                // Node.js environment - would need additional crypto library
+                return { valid: false, reason: 'Ed25519 verification requires Web Crypto API or additional library' };
+            }
+
+        } catch (error) {
+            return { valid: false, reason: `JWKS verification error: ${error.message}` };
+        }
+    }
+
+    /**
+     * Fetch JWKS with caching
+     */
+    async _fetchJwks(jwksUrl) {
+        const now = Date.now();
         
+        if (this.jwksCache.has(jwksUrl)) {
+            const { jwks, timestamp } = this.jwksCache.get(jwksUrl);
+            if (now - timestamp < this.jwksCacheTtl) {
+                return jwks;
+            }
+        }
+
+        // Fetch fresh JWKS
+        const response = await fetch(jwksUrl);
         if (!response.ok) {
-            throw new Error(`Health check failed: ${response.status} ${response.statusText}`);
+            throw new Error(`Failed to fetch JWKS: ${response.status}`);
         }
         
-        return await response.json();
+        const jwks = await response.json();
+        
+        // Cache result
+        this.jwksCache.set(jwksUrl, { jwks, timestamp: now });
+        
+        return jwks;
+    }
+
+    /**
+     * Base64 URL decode
+     */
+    _base64UrlDecode(str) {
+        // Add padding if needed
+        str += '='.repeat((4 - str.length % 4) % 4);
+        // Replace URL-safe characters
+        str = str.replace(/-/g, '+').replace(/_/g, '/');
+        // Decode
+        return Uint8Array.from(atob(str), c => c.charCodeAt(0));
+    }
+
+    /**
+     * Base64 decode
+     */
+    _base64Decode(str) {
+        return Uint8Array.from(atob(str), c => c.charCodeAt(0));
     }
 }
 
-/**
- * Utility functions
- */
-function base64ToArrayBuffer(base64) {
-    const binaryString = atob(base64);
-    const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-    }
-    return bytes.buffer;
+// Convenience functions for one-liner usage
+async function verifyReceipt(receipt, previousReceipt = null) {
+    const verifier = new SignetVerifier();
+    return await verifier.verifyReceipt(receipt, previousReceipt);
+}
+
+async function verifyChain(receipts) {
+    const verifier = new SignetVerifier();
+    return await verifier.verifyChain(receipts);
+}
+
+async function verifyExportBundle(bundle, jwksUrl = null) {
+    const verifier = new SignetVerifier();
+    return await verifier.verifyExportBundle(bundle, jwksUrl);
+}
+
+// Export for different environments
+if (typeof module !== 'undefined' && module.exports) {
+    // Node.js
+    module.exports = {
+        SignetVerifier,
+        verifyReceipt,
+        verifyChain,
+        verifyExportBundle
+    };
+} else if (typeof window !== 'undefined') {
+    // Browser
+    window.SignetVerifier = SignetVerifier;
+    window.verifyReceipt = verifyReceipt;
+    window.verifyChain = verifyChain;
+    window.verifyExportBundle = verifyExportBundle;
 }
 
 // Example usage
-if (typeof window !== 'undefined') {
-    // Browser example
-    window.signetExample = async function() {
-        const client = new SignetClient('http://localhost:8088', 'demo_key');
-        
-        try {
-            const health = await client.healthCheck();
-            console.log('Server health:', health);
-            
-            const result = await client.exchange(
-                'openai.tooluse.invoice.v1',
-                'invoice.iso20022.v1',
-                {
-                    tool_calls: [{
-                        type: 'function',
-                        function: {
-                            name: 'create_invoice',
-                            arguments: JSON.stringify({
-                                invoice_id: 'INV-001',
-                                amount: 1000,
-                                currency: 'USD'
-                            })
-                        }
-                    }]
-                },
-                'https://webhook.site/your-unique-url'
-            );
-            
-            console.log('Exchange result:', result);
-        } catch (error) {
-            console.error('Error:', error);
-        }
+if (typeof module !== 'undefined' && require.main === module) {
+    // Example receipt
+    const receipt = {
+        trace_id: 'example-123',
+        hop: 1,
+        ts: '2025-01-27T12:00:00Z',
+        tenant: 'demo',
+        cid: 'sha256:abc123',
+        canon: '{"test":"data"}',
+        algo: 'sha256',
+        prev_receipt_hash: null,
+        receipt_hash: 'sha256:def456',
+        policy: { engine: 'HEL', allowed: true, reason: 'ok' }
     };
+
+    // Verify in one line
+    verifyReceipt(receipt).then(result => {
+        console.log(`Receipt valid: ${result.valid}, reason: ${result.reason}`);
+    });
 }

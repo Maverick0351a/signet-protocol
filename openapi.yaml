@@ -1,0 +1,625 @@
+openapi: 3.0.3
+info:
+  title: Signet Protocol API
+  description: |
+    Signet Protocol provides verified AI-to-AI communications through cryptographic receipts and chain-of-custody tracking.
+    
+    ## Overview
+    
+    Signet Protocol enables secure, verifiable exchanges between AI systems by:
+    - Creating cryptographic receipts for each exchange
+    - Maintaining tamper-evident chains of custody
+    - Providing policy-based forwarding controls
+    - Supporting billing and usage tracking
+    
+    ## Authentication
+    
+    All API endpoints require authentication via the `X-SIGNET-API-Key` header.
+    
+    ## Idempotency
+    
+    Exchange operations support idempotency via the `X-SIGNET-Idempotency-Key` header to prevent duplicate processing.
+    
+    ## Rate Limiting
+    
+    API requests are subject to rate limiting based on your subscription tier and usage quotas.
+  version: 1.0.0
+  contact:
+    name: ODIN Protocol Corporation
+    url: https://odinprotocol.com
+    email: support@odinprotocol.com
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+
+servers:
+  - url: http://localhost:8088
+    description: Local development server
+  - url: https://api.signet-protocol.com
+    description: Production server
+
+security:
+  - ApiKeyAuth: []
+
+paths:
+  /healthz:
+    get:
+      summary: Health check
+      description: Check the health status of the Signet Protocol server
+      operationId: healthCheck
+      tags:
+        - System
+      security: []
+      responses:
+        '200':
+          description: Server is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+                  storage:
+                    type: string
+                    example: "sqlite"
+                  ts:
+                    type: string
+                    format: date-time
+                    example: "2024-01-15T10:30:00Z"
+
+  /metrics:
+    get:
+      summary: Prometheus metrics
+      description: Get Prometheus-formatted metrics for monitoring
+      operationId: getMetrics
+      tags:
+        - System
+      security: []
+      responses:
+        '200':
+          description: Prometheus metrics
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  /.well-known/jwks.json:
+    get:
+      summary: JSON Web Key Set
+      description: Get the public keys used for signature verification
+      operationId: getJWKS
+      tags:
+        - System
+      security: []
+      responses:
+        '200':
+          description: JSON Web Key Set
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  keys:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/JWK'
+
+  /v1/exchange:
+    post:
+      summary: Create verified exchange
+      description: |
+        Create a verified exchange through Signet Protocol. This endpoint:
+        - Validates and transforms the payload according to the specified mapping
+        - Creates a cryptographic receipt
+        - Optionally forwards the normalized data to a webhook
+        - Records usage for billing purposes
+      operationId: createExchange
+      tags:
+        - Exchanges
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExchangeRequest'
+            examples:
+              invoice_exchange:
+                summary: Invoice exchange example
+                value:
+                  payload_type: "openai.tooluse.invoice.v1"
+                  target_type: "invoice.iso20022.v1"
+                  trace_id: "invoice-2024-001"
+                  payload:
+                    tool_calls:
+                      - type: "function"
+                        function:
+                          name: "create_invoice"
+                          arguments: '{"amount": 1000, "currency": "USD", "customer": "Acme Corp"}'
+                  forward_url: "https://webhook.example.com/receive"
+      responses:
+        '200':
+          description: Exchange created successfully
+          headers:
+            X-SIGNET-Trace:
+              description: Trace ID for the exchange
+              schema:
+                type: string
+            X-SIGNET-Idempotency-Hit:
+              description: Present if this was an idempotent retry
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExchangeResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /v1/receipts/chain/{trace_id}:
+    get:
+      summary: Get receipt chain
+      description: Retrieve the complete receipt chain for a given trace ID
+      operationId: getReceiptChain
+      tags:
+        - Receipts
+      parameters:
+        - name: trace_id
+          in: path
+          required: true
+          description: Trace ID to retrieve
+          schema:
+            type: string
+          example: "invoice-2024-001"
+      responses:
+        '200':
+          description: Receipt chain retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Receipt'
+        '404':
+          description: Trace ID not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /v1/receipts/export/{trace_id}:
+    get:
+      summary: Export signed chain bundle
+      description: Export a cryptographically signed bundle containing the complete receipt chain
+      operationId: exportChain
+      tags:
+        - Receipts
+      parameters:
+        - name: trace_id
+          in: path
+          required: true
+          description: Trace ID to export
+          schema:
+            type: string
+          example: "invoice-2024-001"
+      responses:
+        '200':
+          description: Chain exported successfully
+          headers:
+            X-ODIN-Response-CID:
+              description: Content Identifier of the bundle
+              schema:
+                type: string
+            X-ODIN-Signature:
+              description: Cryptographic signature of the bundle
+              schema:
+                type: string
+            X-ODIN-KID:
+              description: Key ID used for signing
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExportBundle'
+        '404':
+          description: Trace ID not found
+
+  /v1/billing/dashboard:
+    get:
+      summary: Get billing dashboard
+      description: Retrieve comprehensive billing and usage information
+      operationId: getBillingDashboard
+      tags:
+        - Billing
+      responses:
+        '200':
+          description: Billing dashboard data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingDashboard'
+
+  /v1/billing/setup-products:
+    post:
+      summary: Setup Stripe products
+      description: Initialize Stripe products and pricing for Signet Protocol services
+      operationId: setupStripeProducts
+      tags:
+        - Billing
+      responses:
+        '200':
+          description: Products setup successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  products:
+                    type: array
+                    items:
+                      type: object
+
+  /v1/billing/create-payment-link/{tenant}:
+    post:
+      summary: Create payment link
+      description: Create a Stripe payment link for tenant subscription
+      operationId: createPaymentLink
+      tags:
+        - Billing
+      parameters:
+        - name: tenant
+          in: path
+          required: true
+          description: Tenant identifier
+          schema:
+            type: string
+        - name: plan_type
+          in: query
+          description: Subscription plan type
+          schema:
+            type: string
+            default: "monthly"
+      responses:
+        '200':
+          description: Payment link created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  payment_link_url:
+                    type: string
+                    format: uri
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-SIGNET-API-Key
+      description: API key for authentication
+
+  schemas:
+    ExchangeRequest:
+      type: object
+      required:
+        - payload_type
+        - target_type
+        - payload
+      properties:
+        payload_type:
+          type: string
+          description: Source payload type identifier
+          example: "openai.tooluse.invoice.v1"
+        target_type:
+          type: string
+          description: Target payload type identifier
+          example: "invoice.iso20022.v1"
+        payload:
+          type: object
+          description: The payload data to be transformed
+        trace_id:
+          type: string
+          description: Optional trace ID for chaining exchanges
+          example: "invoice-2024-001"
+        forward_url:
+          type: string
+          format: uri
+          description: Optional URL to forward normalized data
+          example: "https://webhook.example.com/receive"
+
+    ExchangeResponse:
+      type: object
+      properties:
+        trace_id:
+          type: string
+          description: Trace ID for this exchange
+          example: "invoice-2024-001"
+        normalized:
+          type: object
+          description: The transformed payload data
+        policy:
+          type: object
+          properties:
+            engine:
+              type: string
+              example: "HEL"
+            allowed:
+              type: boolean
+              example: true
+            reason:
+              type: string
+              example: "ok"
+        receipt:
+          $ref: '#/components/schemas/ReceiptInfo'
+        forwarded:
+          type: object
+          description: Forward operation result (if forward_url provided)
+          properties:
+            status_code:
+              type: integer
+              example: 200
+            host:
+              type: string
+              example: "webhook.example.com"
+
+    ReceiptInfo:
+      type: object
+      properties:
+        ts:
+          type: string
+          format: date-time
+          description: Receipt timestamp
+          example: "2024-01-15T10:30:00Z"
+        cid:
+          type: string
+          description: Content Identifier of the normalized payload
+          example: "bafkreiabcd1234567890abcdef"
+        receipt_hash:
+          type: string
+          description: Hash of the receipt
+          example: "bafkreixyz9876543210fedcba"
+        prev_receipt_hash:
+          type: string
+          nullable: true
+          description: Hash of the previous receipt in chain
+          example: "bafkreiprev123456789abcdef"
+        hop:
+          type: integer
+          description: Hop number in the chain
+          example: 1
+
+    Receipt:
+      type: object
+      properties:
+        trace_id:
+          type: string
+          description: Trace ID for the exchange chain
+          example: "invoice-2024-001"
+        hop:
+          type: integer
+          description: Hop number in the chain
+          example: 1
+        tenant:
+          type: string
+          description: Tenant identifier
+          example: "acme-corp"
+        ts:
+          type: string
+          format: date-time
+          description: Receipt timestamp
+          example: "2024-01-15T10:30:00Z"
+        cid:
+          type: string
+          description: Content Identifier of the payload
+          example: "bafkreiabcd1234567890abcdef"
+        receipt_hash:
+          type: string
+          description: Hash of this receipt
+          example: "bafkreixyz9876543210fedcba"
+        prev_receipt_hash:
+          type: string
+          nullable: true
+          description: Hash of the previous receipt
+          example: "bafkreiprev123456789abcdef"
+        policy:
+          type: object
+          description: Policy evaluation result
+        fallback_used:
+          type: boolean
+          description: Whether fallback processing was used
+          example: false
+        fu_tokens:
+          type: integer
+          description: Fallback units consumed
+          example: 0
+        semantic_violations:
+          type: array
+          items:
+            type: string
+          description: Any semantic violations detected
+
+    ExportBundle:
+      type: object
+      properties:
+        trace_id:
+          type: string
+          description: Trace ID of the exported chain
+          example: "invoice-2024-001"
+        chain:
+          type: array
+          items:
+            $ref: '#/components/schemas/Receipt'
+          description: Complete receipt chain
+        exported_at:
+          type: string
+          format: date-time
+          description: Export timestamp
+          example: "2024-01-15T10:35:00Z"
+
+    BillingDashboard:
+      type: object
+      properties:
+        metrics:
+          type: object
+          properties:
+            vex_usage:
+              type: integer
+              description: Verified exchanges used
+              example: 150
+            fu_usage:
+              type: integer
+              description: Fallback units used
+              example: 25
+            total_cost:
+              type: number
+              format: float
+              description: Total cost in USD
+              example: 15.75
+        quotas:
+          type: object
+          properties:
+            vex_limit:
+              type: integer
+              description: VEx monthly limit
+              example: 1000
+            fu_limit:
+              type: integer
+              description: FU monthly limit
+              example: 500
+        billing_period:
+          type: object
+          properties:
+            start:
+              type: string
+              format: date-time
+            end:
+              type: string
+              format: date-time
+
+    JWK:
+      type: object
+      properties:
+        kty:
+          type: string
+          description: Key type
+          example: "EC"
+        crv:
+          type: string
+          description: Curve name
+          example: "P-256"
+        x:
+          type: string
+          description: X coordinate
+        y:
+          type: string
+          description: Y coordinate
+        use:
+          type: string
+          description: Key use
+          example: "sig"
+        kid:
+          type: string
+          description: Key ID
+          example: "signet-key-1"
+
+    Error:
+      type: object
+      properties:
+        detail:
+          type: string
+          description: Error message
+          example: "Invalid payload format"
+        code:
+          type: string
+          description: Error code
+          example: "INVALID_PAYLOAD"
+
+  responses:
+    BadRequest:
+      description: Bad request - invalid parameters
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            detail: "Missing required field: payload_type"
+            code: "MISSING_FIELD"
+
+    Unauthorized:
+      description: Unauthorized - invalid or missing API key
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            detail: "Invalid API key"
+            code: "UNAUTHORIZED"
+
+    Forbidden:
+      description: Forbidden - policy violation
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            detail: "Forward URL not in allowlist"
+            code: "POLICY_VIOLATION"
+
+    Conflict:
+      description: Conflict - chain conflict detected
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            detail: "Chain conflict detected"
+            code: "CHAIN_CONFLICT"
+
+    UnprocessableEntity:
+      description: Unprocessable entity - validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            detail: "Payload validation failed: missing amount field"
+            code: "VALIDATION_ERROR"
+
+    RateLimited:
+      description: Rate limited - quota exceeded
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            detail: "Monthly VEx quota exceeded"
+            code: "QUOTA_EXCEEDED"
+
+tags:
+  - name: System
+    description: System health and configuration endpoints
+  - name: Exchanges
+    description: Create and manage verified exchanges
+  - name: Receipts
+    description: Retrieve and export receipt chains
+  - name: Billing
+    description: Billing and usage management
+
+externalDocs:
+  description: Signet Protocol Documentation
+  url: https://docs.signet-protocol.com

@@ -1,0 +1,515 @@
+{
+  "products": {
+    "vex": {
+      "id": "prod_SwmZ05cYKw2Tmx",
+      "object": "product",
+      "active": true,
+      "attributes": [],
+      "created": 1756338230,
+      "default_price": null,
+      "description": "Verified Exchange operations - cryptographic verification of AI interactions with hash-linked receipts and audit trails",
+      "images": [],
+      "livemode": true,
+      "marketing_features": [],
+      "metadata": {},
+      "name": "Signet VEx (Verified Exchange)",
+      "package_dimensions": null,
+      "shippable": null,
+      "statement_descriptor": null,
+      "tax_code": null,
+      "type": "service",
+      "unit_label": null,
+      "updated": 1756338230,
+      "url": null
+    },
+    "fu": {
+      "id": "prod_SwmZuW76rPaQiJ",
+      "object": "product",
+      "active": true,
+      "attributes": [],
+      "created": 1756338231,
+      "default_price": null,
+      "description": "Fallback Units for AI repair services - token-based usage when LLM assistance is required for JSON validation",
+      "images": [],
+      "livemode": true,
+      "marketing_features": [],
+      "metadata": {},
+      "name": "Signet FU (Fallback Units)",
+      "package_dimensions": null,
+      "shippable": null,
+      "statement_descriptor": null,
+      "tax_code": null,
+      "type": "service",
+      "unit_label": null,
+      "updated": 1756338231,
+      "url": null
+    },
+    "starter": {
+      "id": "prod_SwmZ0thWwIs4o6",
+      "object": "product",
+      "active": true,
+      "attributes": [],
+      "created": 1756338232,
+      "default_price": null,
+      "description": "Starter plan with 10,000 VEx and 50,000 FU tokens monthly",
+      "images": [],
+      "livemode": true,
+      "marketing_features": [],
+      "metadata": {},
+      "name": "Signet Protocol - Starter Plan",
+      "package_dimensions": null,
+      "shippable": null,
+      "statement_descriptor": null,
+      "tax_code": null,
+      "type": "service",
+      "unit_label": null,
+      "updated": 1756338232,
+      "url": null
+    },
+    "professional": {
+      "id": "prod_SwmZZcKlwBzrns",
+      "object": "product",
+      "active": true,
+      "attributes": [],
+      "created": 1756338233,
+      "default_price": null,
+      "description": "Professional plan with 100,000 VEx and 500,000 FU tokens monthly",
+      "images": [],
+      "livemode": true,
+      "marketing_features": [],
+      "metadata": {},
+      "name": "Signet Protocol - Professional Plan",
+      "package_dimensions": null,
+      "shippable": null,
+      "statement_descriptor": null,
+      "tax_code": null,
+      "type": "service",
+      "unit_label": null,
+      "updated": 1756338233,
+      "url": null
+    },
+    "enterprise": {
+      "id": "prod_SwmZRF2Ps0LNyu",
+      "object": "product",
+      "active": true,
+      "attributes": [],
+      "created": 1756338234,
+      "default_price": null,
+      "description": "Enterprise plan with 1,000,000 VEx and 5,000,000 FU tokens monthly",
+      "images": [],
+      "livemode": true,
+      "marketing_features": [],
+      "metadata": {},
+      "name": "Signet Protocol - Enterprise Plan",
+      "package_dimensions": null,
+      "shippable": null,
+      "statement_descriptor": null,
+      "tax_code": null,
+      "type": "service",
+      "unit_label": null,
+      "updated": 1756338234,
+      "url": null
+    }
+  },
+  "prices": {
+    "vex_tier1": {
+      "id": "price_1S0t0MLcPYf7t6osWsnR1zSS",
+      "object": "price",
+      "active": true,
+      "billing_scheme": "per_unit",
+      "created": 1756338230,
+      "currency": "usd",
+      "custom_unit_amount": null,
+      "livemode": true,
+      "lookup_key": null,
+      "metadata": {},
+      "nickname": "VEx Tier 1 - $0.005 per exchange",
+      "product": "prod_SwmZ05cYKw2Tmx",
+      "recurring": null,
+      "tax_behavior": "unspecified",
+      "tiers_mode": null,
+      "transform_quantity": null,
+      "type": "one_time",
+      "unit_amount": 500,
+      "unit_amount_decimal": "500"
+    },
+    "vex_tier2": {
+      "id": "price_1S0t0MLcPYf7t6oszotpd1au",
+      "object": "price",
+      "active": true,
+      "billing_scheme": "per_unit",
+      "created": 1756338230,
+      "currency": "usd",
+      "custom_unit_amount": null,
+      "livemode": true,
+      "lookup_key": null,
+      "metadata": {},
+      "nickname": "VEx Tier 2 - $0.008 per exchange",
+      "product": "prod_SwmZ05cYKw2Tmx",
+      "recurring": null,
+      "tax_behavior": "unspecified",
+      "tiers_mode": null,
+      "transform_quantity": null,
+      "type": "one_time",
+      "unit_amount": 800,
+      "unit_amount_decimal": "800"
+    },
+    "fu_tier1": {
+      "id": "price_1S0t0OLcPYf7t6os3M3aWNPz",
+      "object": "price",
+      "active": true,
+      "billing_scheme": "per_unit",
+      "created": 1756338232,
+      "currency": "usd",
+      "custom_unit_amount": null,
+      "livemode": true,
+      "lookup_key": null,
+      "metadata": {},
+      "nickname": "FU Tier 1 - $0.001 per token",
+      "product": "prod_SwmZuW76rPaQiJ",
+      "recurring": null,
+      "tax_behavior": "unspecified",
+      "tiers_mode": null,
+      "transform_quantity": null,
+      "type": "one_time",
+      "unit_amount": 100,
+      "unit_amount_decimal": "100"
+    },
+    "fu_tier2": {
+      "id": "price_1S0t0OLcPYf7t6osv1Y8JMxp",
+      "object": "price",
+      "active": true,
+      "billing_scheme": "per_unit",
+      "created": 1756338232,
+      "currency": "usd",
+      "custom_unit_amount": null,
+      "livemode": true,
+      "lookup_key": null,
+      "metadata": {},
+      "nickname": "FU Tier 2 - $0.0008 per token",
+      "product": "prod_SwmZuW76rPaQiJ",
+      "recurring": null,
+      "tax_behavior": "unspecified",
+      "tiers_mode": null,
+      "transform_quantity": null,
+      "type": "one_time",
+      "unit_amount": 80,
+      "unit_amount_decimal": "80"
+    },
+    "starter_monthly": {
+      "id": "price_1S0t0PLcPYf7t6os2j1JhpRx",
+      "object": "price",
+      "active": true,
+      "billing_scheme": "per_unit",
+      "created": 1756338233,
+      "currency": "usd",
+      "custom_unit_amount": null,
+      "livemode": true,
+      "lookup_key": null,
+      "metadata": {},
+      "nickname": "Starter Plan - $499/month",
+      "product": "prod_SwmZ0thWwIs4o6",
+      "recurring": {
+        "interval": "month",
+        "interval_count": 1,
+        "meter": null,
+        "trial_period_days": null,
+        "usage_type": "licensed"
+      },
+      "tax_behavior": "unspecified",
+      "tiers_mode": null,
+      "transform_quantity": null,
+      "type": "recurring",
+      "unit_amount": 49900,
+      "unit_amount_decimal": "49900"
+    },
+    "pro_monthly": {
+      "id": "price_1S0t0PLcPYf7t6oszLmJTyLc",
+      "object": "price",
+      "active": true,
+      "billing_scheme": "per_unit",
+      "created": 1756338233,
+      "currency": "usd",
+      "custom_unit_amount": null,
+      "livemode": true,
+      "lookup_key": null,
+      "metadata": {},
+      "nickname": "Professional Plan - $1,999/month",
+      "product": "prod_SwmZZcKlwBzrns",
+      "recurring": {
+        "interval": "month",
+        "interval_count": 1,
+        "meter": null,
+        "trial_period_days": null,
+        "usage_type": "licensed"
+      },
+      "tax_behavior": "unspecified",
+      "tiers_mode": null,
+      "transform_quantity": null,
+      "type": "recurring",
+      "unit_amount": 199900,
+      "unit_amount_decimal": "199900"
+    },
+    "enterprise_monthly": {
+      "id": "price_1S0t0QLcPYf7t6ostUSgtTdB",
+      "object": "price",
+      "active": true,
+      "billing_scheme": "per_unit",
+      "created": 1756338234,
+      "currency": "usd",
+      "custom_unit_amount": null,
+      "livemode": true,
+      "lookup_key": null,
+      "metadata": {},
+      "nickname": "Enterprise Plan - $9,999/month",
+      "product": "prod_SwmZRF2Ps0LNyu",
+      "recurring": {
+        "interval": "month",
+        "interval_count": 1,
+        "meter": null,
+        "trial_period_days": null,
+        "usage_type": "licensed"
+      },
+      "tax_behavior": "unspecified",
+      "tiers_mode": null,
+      "transform_quantity": null,
+      "type": "recurring",
+      "unit_amount": 999900,
+      "unit_amount_decimal": "999900"
+    }
+  },
+  "payment_links": {
+    "starter": {
+      "id": "plink_1S0t0RLcPYf7t6osF9MiaCjf",
+      "object": "payment_link",
+      "active": true,
+      "after_completion": {
+        "hosted_confirmation": {
+          "custom_message": null
+        },
+        "type": "hosted_confirmation"
+      },
+      "allow_promotion_codes": false,
+      "application": null,
+      "application_fee_amount": null,
+      "application_fee_percent": null,
+      "automatic_tax": {
+        "enabled": false,
+        "liability": null
+      },
+      "billing_address_collection": "auto",
+      "consent_collection": null,
+      "currency": "usd",
+      "custom_fields": [],
+      "custom_text": {
+        "after_submit": null,
+        "shipping_address": null,
+        "submit": null,
+        "terms_of_service_acceptance": null
+      },
+      "customer_creation": "if_required",
+      "inactive_message": null,
+      "invoice_creation": {
+        "enabled": false,
+        "invoice_data": {
+          "account_tax_ids": null,
+          "custom_fields": null,
+          "description": null,
+          "footer": null,
+          "issuer": null,
+          "metadata": {},
+          "rendering_options": null
+        }
+      },
+      "livemode": true,
+      "metadata": {},
+      "on_behalf_of": null,
+      "payment_intent_data": null,
+      "payment_method_collection": "always",
+      "payment_method_types": null,
+      "phone_number_collection": {
+        "enabled": false
+      },
+      "restrictions": null,
+      "shipping_address_collection": null,
+      "shipping_options": [],
+      "submit_type": "auto",
+      "subscription_data": {
+        "description": null,
+        "invoice_settings": {
+          "issuer": {
+            "type": "self"
+          }
+        },
+        "metadata": {},
+        "trial_period_days": null,
+        "trial_settings": {
+          "end_behavior": {
+            "missing_payment_method": "create_invoice"
+          }
+        }
+      },
+      "tax_id_collection": {
+        "enabled": false,
+        "required": "never"
+      },
+      "transfer_data": null,
+      "url": "https://buy.stripe.com/7sY7sM6Wu9OL2y63rG2VG00"
+    },
+    "professional": {
+      "id": "plink_1S0t0RLcPYf7t6osWZqjKVei",
+      "object": "payment_link",
+      "active": true,
+      "after_completion": {
+        "hosted_confirmation": {
+          "custom_message": null
+        },
+        "type": "hosted_confirmation"
+      },
+      "allow_promotion_codes": false,
+      "application": null,
+      "application_fee_amount": null,
+      "application_fee_percent": null,
+      "automatic_tax": {
+        "enabled": false,
+        "liability": null
+      },
+      "billing_address_collection": "auto",
+      "consent_collection": null,
+      "currency": "usd",
+      "custom_fields": [],
+      "custom_text": {
+        "after_submit": null,
+        "shipping_address": null,
+        "submit": null,
+        "terms_of_service_acceptance": null
+      },
+      "customer_creation": "if_required",
+      "inactive_message": null,
+      "invoice_creation": {
+        "enabled": false,
+        "invoice_data": {
+          "account_tax_ids": null,
+          "custom_fields": null,
+          "description": null,
+          "footer": null,
+          "issuer": null,
+          "metadata": {},
+          "rendering_options": null
+        }
+      },
+      "livemode": true,
+      "metadata": {},
+      "on_behalf_of": null,
+      "payment_intent_data": null,
+      "payment_method_collection": "always",
+      "payment_method_types": null,
+      "phone_number_collection": {
+        "enabled": false
+      },
+      "restrictions": null,
+      "shipping_address_collection": null,
+      "shipping_options": [],
+      "submit_type": "auto",
+      "subscription_data": {
+        "description": null,
+        "invoice_settings": {
+          "issuer": {
+            "type": "self"
+          }
+        },
+        "metadata": {},
+        "trial_period_days": null,
+        "trial_settings": {
+          "end_behavior": {
+            "missing_payment_method": "create_invoice"
+          }
+        }
+      },
+      "tax_id_collection": {
+        "enabled": false,
+        "required": "never"
+      },
+      "transfer_data": null,
+      "url": "https://buy.stripe.com/eVq8wQdkSgd93CabYc2VG01"
+    },
+    "enterprise": {
+      "id": "plink_1S0t0SLcPYf7t6osAUiljnyS",
+      "object": "payment_link",
+      "active": true,
+      "after_completion": {
+        "hosted_confirmation": {
+          "custom_message": null
+        },
+        "type": "hosted_confirmation"
+      },
+      "allow_promotion_codes": false,
+      "application": null,
+      "application_fee_amount": null,
+      "application_fee_percent": null,
+      "automatic_tax": {
+        "enabled": false,
+        "liability": null
+      },
+      "billing_address_collection": "auto",
+      "consent_collection": null,
+      "currency": "usd",
+      "custom_fields": [],
+      "custom_text": {
+        "after_submit": null,
+        "shipping_address": null,
+        "submit": null,
+        "terms_of_service_acceptance": null
+      },
+      "customer_creation": "if_required",
+      "inactive_message": null,
+      "invoice_creation": {
+        "enabled": false,
+        "invoice_data": {
+          "account_tax_ids": null,
+          "custom_fields": null,
+          "description": null,
+          "footer": null,
+          "issuer": null,
+          "metadata": {},
+          "rendering_options": null
+        }
+      },
+      "livemode": true,
+      "metadata": {},
+      "on_behalf_of": null,
+      "payment_intent_data": null,
+      "payment_method_collection": "always",
+      "payment_method_types": null,
+      "phone_number_collection": {
+        "enabled": false
+      },
+      "restrictions": null,
+      "shipping_address_collection": null,
+      "shipping_options": [],
+      "submit_type": "auto",
+      "subscription_data": {
+        "description": null,
+        "invoice_settings": {
+          "issuer": {
+            "type": "self"
+          }
+        },
+        "metadata": {},
+        "trial_period_days": null,
+        "trial_settings": {
+          "end_behavior": {
+            "missing_payment_method": "create_invoice"
+          }
+        }
+      },
+      "tax_id_collection": {
+        "enabled": false,
+        "required": "never"
+      },
+      "transfer_data": null,
+      "url": "https://buy.stripe.com/cNiaEY4Omf958Wu7HW2VG02"
+    }
+  },
+  "errors": []
+}

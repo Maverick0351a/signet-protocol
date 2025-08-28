@@ -1,0 +1,11 @@
+{
+  "from": "openai.tooluse.invoice.v1",
+  "to": "invoice.iso20022.v1",
+  "assign": {
+    "Document.Invoice.Id": "tool_calls[0].function.arguments.invoice_id",
+    "Document.Invoice.TotalMinor": "to_minor(tool_calls[0].function.arguments.amount, 'USD')",
+    "Document.Invoice.Currency": "tool_calls[0].function.arguments.currency",
+    "Document.Invoice.Party.Name": "tool_calls[0].function.arguments.customer_name",
+    "Document.Invoice.Note": "tool_calls[0].function.arguments.description"
+  }
+}

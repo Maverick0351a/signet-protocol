@@ -6,7 +6,7 @@ WORKDIR /app
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
     gcc \
-    libpq-dev \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for better caching
@@ -19,7 +19,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Create non-root user
-RUN useradd -m -u 1000 signet && chown -R signet:signet /app
+RUN useradd --create-home --shell /bin/bash signet
+RUN chown -R signet:signet /app
 USER signet
 
 # Expose port
@@ -30,4 +31,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8088/healthz || exit 1
 
 # Run the application
-CMD ["uvicorn", "server.main:app", "--host", "0.0.0.0", "--port", "8088"]
+CMD ["uvicorn", "server.main:app", "--host", "0.0.0.0", "--port", "8088", "--workers", "1"]

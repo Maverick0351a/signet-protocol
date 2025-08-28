@@ -1,147 +1,257 @@
-#!/usr/bin/env python3
 """
-Signet Protocol Python Verification SDK
+Signet Protocol - Python Verification SDK
+Verify receipts and chains in 5 lines of code.
+"""
 
-Simple 5-line verification of Signet receipts
-with cryptographic signature validation.
-"""
+__version__ = "1.0.0"
 
 import json
-import base64
 import hashlib
-from typing import Dict, Any, Tuple, Optional
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
-from cryptography.exceptions import InvalidSignature
+import base64
+from typing import List, Dict, Any, Tuple, Optional
+from urllib.parse import urlparse
+import requests
 
-
-def verify_receipt(receipt: Dict[str, Any], public_key_pem: str) -> Tuple[bool, str]:
+class SignetVerifier:
     """
-    Verify a Signet receipt in 5 lines
+    Lightweight SDK for verifying Signet receipts and chains.
     
-    Args:
-        receipt: The receipt data to verify
-        public_key_pem: Public key in PEM format
-    
-    Returns:
-        Tuple of (is_valid, reason)
+    Usage:
+        verifier = SignetVerifier()
+        valid, reason = verifier.verify_receipt(receipt)
+        valid, reason = verifier.verify_chain(receipts)
     """
-    try:
-        # Extract signature
-        signature = receipt.pop('signature', None)
-        if not signature:
-            return False, "No signature found"
+    
+    def __init__(self, jwks_cache_ttl: int = 3600):
+        self.jwks_cache = {}
+        self.jwks_cache_ttl = jwks_cache_ttl
+    
+    def verify_receipt(self, receipt: Dict[str, Any], previous_receipt: Optional[Dict[str, Any]] = None) -> Tuple[bool, str]:
+        """
+        Verify a single Signet receipt.
         
-        # Canonicalize JSON
-        canonical = json.dumps(receipt, ensure_ascii=True, separators=(',', ':'), sort_keys=True)
+        Args:
+            receipt: The receipt to verify
+            previous_receipt: The previous receipt in the chain (if any)
+            
+        Returns:
+            (is_valid, reason)
+        """
+        try:
+            # 1. Verify receipt hash
+            computed_hash = self._compute_receipt_hash(receipt)
+            if receipt.get("receipt_hash") != computed_hash:
+                return False, "Invalid receipt hash"
+            
+            # 2. Verify chain linkage
+            if previous_receipt:
+                if receipt.get("prev_receipt_hash") != previous_receipt.get("receipt_hash"):
+                    return False, "Broken chain linkage"
+                if receipt.get("hop", 0) != previous_receipt.get("hop", 0) + 1:
+                    return False, "Invalid hop sequence"
+                if receipt.get("trace_id") != previous_receipt.get("trace_id"):
+                    return False, "Trace ID mismatch"
+            
+            # 3. Verify content identifier
+            if "canon" in receipt and "cid" in receipt:
+                computed_cid = self._compute_cid(receipt["canon"])
+                if receipt["cid"] != computed_cid:
+                    return False, "Invalid content identifier"
+            
+            # 4. Verify timestamp format
+            if "ts" in receipt:
+                try:
+                    from datetime import datetime
+                    datetime.fromisoformat(receipt["ts"].replace('Z', '+00:00'))
+                except ValueError:
+                    return False, "Invalid timestamp format"
+            
+            return True, "Valid receipt"
+            
+        except Exception as e:
+            return False, f"Verification error: {str(e)}"
+    
+    def verify_chain(self, receipts: List[Dict[str, Any]]) -> Tuple[bool, str]:
+        """
+        Verify a complete receipt chain.
         
-        # Load public key and verify
-        public_key = Ed25519PublicKey.from_public_bytes(base64.b64decode(public_key_pem))
-        public_key.verify(base64.b64decode(signature), canonical.encode('utf-8'))
+        Args:
+            receipts: List of receipts in chronological order
+            
+        Returns:
+            (is_valid, reason)
+        """
+        if not receipts:
+            return True, "Empty chain"
         
-        return True, "Valid signature"
+        # Verify genesis receipt
+        if receipts[0].get("prev_receipt_hash") is not None:
+            return False, "Invalid genesis receipt"
         
-    except InvalidSignature:
-        return False, "Invalid signature"
-    except Exception as e:
-        return False, f"Verification error: {str(e)}"
+        # Verify each receipt and linkage
+        for i, receipt in enumerate(receipts):
+            prev = receipts[i-1] if i > 0 else None
+            valid, reason = self.verify_receipt(receipt, prev)
+            if not valid:
+                return False, f"Receipt {i}: {reason}"
+        
+        return True, "Valid chain"
+    
+    def verify_export_bundle(self, bundle: Dict[str, Any], jwks_url: Optional[str] = None) -> Tuple[bool, str]:
+        """
+        Verify a signed export bundle.
+        
+        Args:
+            bundle: The export bundle to verify
+            jwks_url: URL to fetch JWKS (optional, will try to derive from bundle)
+            
+        Returns:
+            (is_valid, reason)
+        """
+        try:
+            # 1. Verify chain
+            chain_valid, chain_reason = self.verify_chain(bundle.get("chain", []))
+            if not chain_valid:
+                return False, f"Invalid chain: {chain_reason}"
+            
+            # 2. Verify bundle CID
+            bundle_content = {
+                "trace_id": bundle["trace_id"],
+                "chain": bundle["chain"],
+                "exported_at": bundle["exported_at"]
+            }
+            computed_cid = self._compute_cid(self._canonicalize(bundle_content))
+            if bundle.get("bundle_cid") != computed_cid:
+                return False, "Invalid bundle CID"
+            
+            # 3. Verify signature (if JWKS available)
+            if "signature" in bundle and "kid" in bundle:
+                if jwks_url:
+                    sig_valid, sig_reason = self._verify_signature(
+                        bundle["bundle_cid"], 
+                        bundle["signature"], 
+                        bundle["kid"], 
+                        jwks_url
+                    )
+                    if not sig_valid:
+                        return False, f"Invalid signature: {sig_reason}"
+            
+            return True, "Valid export bundle"
+            
+        except Exception as e:
+            return False, f"Bundle verification error: {str(e)}"
+    
+    def _compute_receipt_hash(self, receipt: Dict[str, Any]) -> str:
+        """Compute the hash of a receipt (excluding the hash field itself)."""
+        receipt_copy = receipt.copy()
+        receipt_copy.pop("receipt_hash", None)
+        canonical = self._canonicalize(receipt_copy)
+        return "sha256:" + hashlib.sha256(canonical.encode('utf-8')).hexdigest()
+    
+    def _compute_cid(self, content: str) -> str:
+        """Compute content identifier for canonicalized content."""
+        return "sha256:" + hashlib.sha256(content.encode('utf-8')).hexdigest()
+    
+    def _canonicalize(self, obj: Any) -> str:
+        """
+        JSON Canonicalization Scheme (JCS) implementation.
+        Simplified version - for production use a full RFC 8785 implementation.
+        """
+        return json.dumps(obj, ensure_ascii=False, separators=(',', ':'), sort_keys=True)
+    
+    def _verify_signature(self, message: str, signature: str, kid: str, jwks_url: str) -> Tuple[bool, str]:
+        """Verify Ed25519 signature using JWKS."""
+        try:
+            # Fetch JWKS
+            jwks = self._fetch_jwks(jwks_url)
+            
+            # Find key
+            key = None
+            for k in jwks.get("keys", []):
+                if k.get("kid") == kid and k.get("kty") == "OKP" and k.get("crv") == "Ed25519":
+                    key = k
+                    break
+            
+            if not key:
+                return False, f"Key {kid} not found in JWKS"
+            
+            # Verify signature (requires cryptography library)
+            try:
+                from cryptography.hazmat.primitives.asymmetric import ed25519
+                from cryptography.hazmat.primitives import serialization
+                
+                # Decode public key
+                public_key_bytes = base64.urlsafe_b64decode(key["x"] + "==")
+                public_key = ed25519.Ed25519PublicKey.from_public_bytes(public_key_bytes)
+                
+                # Verify signature
+                signature_bytes = base64.b64decode(signature)
+                public_key.verify(signature_bytes, message.encode('utf-8'))
+                
+                return True, "Valid signature"
+                
+            except ImportError:
+                return False, "cryptography library required for signature verification"
+            except Exception as e:
+                return False, f"Signature verification failed: {str(e)}"
+                
+        except Exception as e:
+            return False, f"JWKS verification error: {str(e)}"
+    
+    def _fetch_jwks(self, jwks_url: str) -> Dict[str, Any]:
+        """Fetch JWKS with caching."""
+        import time
+        
+        now = time.time()
+        if jwks_url in self.jwks_cache:
+            cached_jwks, cached_time = self.jwks_cache[jwks_url]
+            if now - cached_time < self.jwks_cache_ttl:
+                return cached_jwks
+        
+        # Fetch fresh JWKS
+        response = requests.get(jwks_url, timeout=10)
+        response.raise_for_status()
+        jwks = response.json()
+        
+        # Cache result
+        self.jwks_cache[jwks_url] = (jwks, now)
+        
+        return jwks
 
 
-def verify_receipt_chain(receipts: list, public_key_pem: str) -> Tuple[bool, str]:
-    """
-    Verify a chain of receipts for hash-chain integrity
-    
-    Args:
-        receipts: List of receipt data in chronological order
-        public_key_pem: Public key in PEM format
-    
-    Returns:
-        Tuple of (is_valid, reason)
-    """
-    if not receipts:
-        return False, "Empty receipt chain"
-    
-    # Verify each receipt individually
-    for i, receipt in enumerate(receipts):
-        is_valid, reason = verify_receipt(receipt.copy(), public_key_pem)
-        if not is_valid:
-            return False, f"Receipt {i} invalid: {reason}"
-    
-    # Verify hash chain (simplified)
-    for i in range(1, len(receipts)):
-        prev_receipt = receipts[i-1]
-        curr_receipt = receipts[i]
-        
-        # Check if current receipt references previous
-        if curr_receipt.get('hop', 1) != prev_receipt.get('hop', 1) + 1:
-            return False, f"Broken chain at receipt {i}: hop sequence invalid"
-    
-    return True, "Valid receipt chain"
+# Convenience functions for one-liner usage
+def verify_receipt(receipt: Dict[str, Any], previous_receipt: Optional[Dict[str, Any]] = None) -> Tuple[bool, str]:
+    """Verify a single receipt. Returns (is_valid, reason)."""
+    verifier = SignetVerifier()
+    return verifier.verify_receipt(receipt, previous_receipt)
+
+def verify_chain(receipts: List[Dict[str, Any]]) -> Tuple[bool, str]:
+    """Verify a receipt chain. Returns (is_valid, reason)."""
+    verifier = SignetVerifier()
+    return verifier.verify_chain(receipts)
+
+def verify_export_bundle(bundle: Dict[str, Any], jwks_url: Optional[str] = None) -> Tuple[bool, str]:
+    """Verify a signed export bundle. Returns (is_valid, reason)."""
+    verifier = SignetVerifier()
+    return verifier.verify_export_bundle(bundle, jwks_url)
 
 
-def compute_receipt_hash(receipt_data: Dict[str, Any]) -> str:
-    """
-    Compute the canonical hash of receipt data
-    
-    Args:
-        receipt_data: Receipt data without signature
-    
-    Returns:
-        SHA-256 hash with 'sha256:' prefix
-    """
-    canonical = json.dumps(receipt_data, ensure_ascii=True, separators=(',', ':'), sort_keys=True)
-    hash_obj = hashlib.sha256(canonical.encode('utf-8'))
-    return f"sha256:{hash_obj.hexdigest()}"
-
-
-class ReceiptVerifier:
-    """Class-based receipt verifier for advanced usage"""
-    
-    def __init__(self, public_key_pem: str):
-        """Initialize with public key"""
-        self.public_key = Ed25519PublicKey.from_public_bytes(base64.b64decode(public_key_pem))
-    
-    def verify(self, receipt: Dict[str, Any]) -> Tuple[bool, str]:
-        """Verify a single receipt"""
-        return verify_receipt(receipt, self.public_key)
-    
-    def verify_chain(self, receipts: list) -> Tuple[bool, str]:
-        """Verify a chain of receipts"""
-        return verify_receipt_chain(receipts, self.public_key)
-    
-    def verify_content_hash(self, receipt: Dict[str, Any], original_content: Any) -> bool:
-        """Verify that content hash matches original content"""
-        expected_hash = receipt.get('cid')
-        if not expected_hash:
-            return False
-        
-        # Compute hash of original content
-        if isinstance(original_content, dict):
-            canonical = json.dumps(original_content, ensure_ascii=True, separators=(',', ':'), sort_keys=True)
-            content = canonical.encode('utf-8')
-        else:
-            content = str(original_content).encode('utf-8')
-        
-        hash_obj = hashlib.sha256(content)
-        computed_hash = f"sha256:{hash_obj.hexdigest()}"
-        
-        return computed_hash == expected_hash
-
-
-# Simple usage example
+# Example usage
 if __name__ == "__main__":
     # Example receipt
-    sample_receipt = {
-        "receipt_id": "receipt-abc123",
-        "trace_id": "signet-def456",
+    receipt = {
+        "trace_id": "example-123",
+        "hop": 1,
         "ts": "2025-01-27T12:00:00Z",
-        "cid": "sha256:content-hash",
-        "receipt_hash": "sha256:receipt-hash",
-        "hop": 1
+        "tenant": "demo",
+        "cid": "sha256:abc123",
+        "canon": '{"test":"data"}',
+        "algo": "sha256",
+        "prev_receipt_hash": None,
+        "receipt_hash": "sha256:def456",
+        "policy": {"engine": "HEL", "allowed": True, "reason": "ok"}
     }
     
-    # Example public key (base64 encoded)
-    public_key = "MCowBQYDK0NiAAEhAKrw6PfFr+1d5TNhehJmLbvp3cOjCyI4bilweropHmqIMh4="
-    
-    # Verify (this will fail without proper signature)
-    is_valid, reason = verify_receipt(sample_receipt, public_key)
-    print(f"Receipt valid: {is_valid}, Reason: {reason}")
+    # Verify in one line
+    valid, reason = verify_receipt(receipt)
+    print(f"Receipt valid: {valid}, reason: {reason}")

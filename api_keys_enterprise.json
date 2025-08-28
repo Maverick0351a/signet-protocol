@@ -1,0 +1,35 @@
+{
+  "demo_starter_key": {
+    "tenant": "startup_customer",
+    "allowlist": [
+      "api.example.com",
+      "webhook.site"
+    ],
+    "fallback_enabled": true,
+    "fu_monthly_limit": 50000,
+    "stripe_item_vex": "price_signet_vex_tier1_005",
+    "stripe_item_fu": "price_signet_fu_tier1_001"
+  },
+  "demo_pro_key": {
+    "tenant": "acme_corp",
+    "allowlist": [
+      "api.acme.com",
+      "webhooks.acme.com"
+    ],
+    "fallback_enabled": true,
+    "fu_monthly_limit": 500000,
+    "stripe_item_vex": "price_signet_vex_tier1_005",
+    "stripe_item_fu": "price_signet_fu_tier1_001"
+  },
+  "demo_enterprise_key": {
+    "tenant": "enterprise_customer",
+    "allowlist": [
+      "*.enterprise.com",
+      "api.partners.com"
+    ],
+    "fallback_enabled": true,
+    "fu_monthly_limit": 5000000,
+    "stripe_item_vex": "price_signet_vex_tier1_005",
+    "stripe_item_fu": "price_signet_fu_tier1_001"
+  }
+}

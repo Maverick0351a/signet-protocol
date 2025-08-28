@@ -1,0 +1,62 @@
+{
+  "name": "signet-verify-js",
+  "version": "1.0.0",
+  "description": "Signet Protocol - JavaScript/TypeScript SDK for verifying receipts and chains",
+  "main": "dist/index.cjs.js",
+  "module": "dist/index.esm.js",
+  "browser": "dist/index.umd.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.esm.js",
+      "require": "./dist/index.cjs.js",
+      "browser": "./dist/index.umd.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist/",
+    "src/",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "rollup -c",
+    "test": "echo \"Tests would run here\"",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "signet",
+    "protocol",
+    "verification",
+    "receipts",
+    "blockchain",
+    "cryptography",
+    "ai",
+    "trust",
+    "audit"
+  ],
+  "author": "Signet Protocol Team",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/odin-protocol/signet-protocol"
+  },
+  "homepage": "https://github.com/odin-protocol/signet-protocol#readme",
+  "bugs": {
+    "url": "https://github.com/odin-protocol/signet-protocol/issues"
+  },
+  "peerDependencies": {
+    "node-fetch": "^3.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0",
+    "rollup": "^4.0.0",
+    "@rollup/plugin-typescript": "^11.0.0",
+    "@rollup/plugin-node-resolve": "^15.0.0",
+    "@rollup/plugin-commonjs": "^25.0.0",
+    "rollup-plugin-terser": "^7.0.0",
+    "@rollup/plugin-terser": "^0.4.4",
+    "tslib": "^2.6.0"
+  }
+}

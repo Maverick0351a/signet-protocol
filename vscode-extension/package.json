@@ -1,0 +1,183 @@
+{
+  "name": "signet-lens",
+  "displayName": "Signet Lens",
+  "description": "VS Code extension for Signet Protocol receipt visualization and verification",
+  "version": "1.0.0",
+  "publisher": "odin-protocol",
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Other",
+    "Visualization",
+    "Debuggers"
+  ],
+  "keywords": [
+    "signet",
+    "protocol",
+    "verification",
+    "receipts",
+    "blockchain",
+    "ai"
+  ],
+  "activationEvents": [
+    "onCommand:signet-lens.verifyReceipt",
+    "onCommand:signet-lens.visualizeChain",
+    "onCommand:signet-lens.copyBundleCID",
+    "onLanguage:json"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "signet-lens.verifyReceipt",
+        "title": "Verify Receipt Chain",
+        "category": "Signet Lens"
+      },
+      {
+        "command": "signet-lens.visualizeChain",
+        "title": "Visualize Receipt Chain",
+        "category": "Signet Lens"
+      },
+      {
+        "command": "signet-lens.copyBundleCID",
+        "title": "Copy Bundle CID",
+        "category": "Signet Lens"
+      },
+      {
+        "command": "signet-lens.diffCID",
+        "title": "Diff CID",
+        "category": "Signet Lens"
+      },
+      {
+        "command": "signet-lens.openSettings",
+        "title": "Open Settings",
+        "category": "Signet Lens"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "when": "editorHasSelection && resourceExtname == .json",
+          "command": "signet-lens.verifyReceipt",
+          "group": "signet@1"
+        },
+        {
+          "when": "editorHasSelection && resourceExtname == .json",
+          "command": "signet-lens.visualizeChain",
+          "group": "signet@2"
+        },
+        {
+          "when": "editorHasSelection",
+          "command": "signet-lens.copyBundleCID",
+          "group": "signet@3"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "signet-lens.verifyReceipt",
+          "when": "editorIsOpen"
+        },
+        {
+          "command": "signet-lens.visualizeChain",
+          "when": "editorIsOpen"
+        },
+        {
+          "command": "signet-lens.copyBundleCID",
+          "when": "editorIsOpen"
+        },
+        {
+          "command": "signet-lens.diffCID",
+          "when": "editorIsOpen"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Signet Lens",
+      "properties": {
+        "signet-lens.serverUrl": {
+          "type": "string",
+          "default": "http://localhost:8088",
+          "description": "Signet Protocol server URL"
+        },
+        "signet-lens.apiKey": {
+          "type": "string",
+          "default": "",
+          "description": "Signet Protocol API key"
+        },
+        "signet-lens.autoVerify": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically verify receipts when opening JSON files"
+        },
+        "signet-lens.showInlineDecorations": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show inline decorations for verified receipts"
+        },
+        "signet-lens.highlightReceiptFields": {
+          "type": "boolean",
+          "default": true,
+          "description": "Highlight receipt fields in JSON"
+        }
+      }
+    },
+    "views": {
+      "explorer": [
+        {
+          "id": "signet-lens.receiptChains",
+          "name": "Receipt Chains",
+          "when": "signet-lens.hasReceiptChains"
+        }
+      ]
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "signet-lens",
+          "title": "Signet Lens",
+          "icon": "$(shield-check)"
+        }
+      ]
+    },
+    "webviews": [
+      {
+        "viewType": "signet-lens.chainVisualizer",
+        "title": "Receipt Chain Visualizer"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js",
+    "package": "vsce package",
+    "publish": "vsce publish"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.74.0",
+    "@types/node": "16.x",
+    "@typescript-eslint/eslint-plugin": "^5.45.0",
+    "@typescript-eslint/parser": "^5.45.0",
+    "eslint": "^8.28.0",
+    "typescript": "^4.9.4",
+    "@vscode/test-electron": "^2.2.0",
+    "vsce": "^2.15.0"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "d3": "^7.8.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/odin-protocol/signet-protocol.git"
+  },
+  "bugs": {
+    "url": "https://github.com/odin-protocol/signet-protocol/issues"
+  },
+  "homepage": "https://github.com/odin-protocol/signet-protocol#readme",
+  "license": "Apache-2.0"
+}

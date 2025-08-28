@@ -111,7 +111,7 @@ pytest tests/ -v
 
 ### 1. Clone and Install
 ```bash
-git clone https://github.com/Maverick0351a/signet-protocol
+git clone https://github.com/your-org/signet-protocol
 cd signet-protocol
 pip install -r requirements.txt
 ```
@@ -304,7 +304,7 @@ uvicorn server.main:app --reload --port 8088
 
 ## 📄 License
 
-MIT License - see [LICENSE](./LICENSE) file for details.
+Apache License 2.0 - see [LICENSE](./LICENSE) file for details.
 
 ## 🔗 Links
 

@@ -1,83 +1,87 @@
-#!/usr/bin/env python3
-"""
-Signet Protocol Settings
+import os, json
+from pydantic import BaseModel
+from typing import Dict, List, Optional
 
-Configuration management for the Signet Protocol server.
-Supports environment variables and production deployment.
-"""
+def _getenv(*names, default=None):
+    for n in names:
+        val = os.getenv(n)
+        if val not in (None, ""):
+            return val
+    return default
 
-import os
-from typing import Optional, List
-from pydantic import BaseSettings, Field
+class TenantConfig(BaseModel):
+    tenant: str
+    free_quota: int = 5000
+    allowlist: List[str] = []
+    stripe_item_vex: Optional[str] = None
+    stripe_item_fu: Optional[str] = None
+    fallback_enabled: bool = False
+    fu_monthly_limit: Optional[int] = None  # FU quota limit per month
 
-
-class Settings(BaseSettings):
-    """Application settings with environment variable support"""
+class Settings(BaseModel):
+    api_keys: Dict[str, TenantConfig]
+    hel_allowlist: List[str]
+    db_path: str
+    receipts_jsonl: Optional[str] = None
+    private_key_b64: Optional[str] = None
+    kid: Optional[str] = None
+    stripe_api_key: Optional[str] = None
+    openai_api_key: Optional[str] = None
+    port: int = int(_getenv("PORT", default="8088"))
     
-    # Server configuration
-    host: str = Field(default="0.0.0.0", env="SIGNET_HOST")
-    port: int = Field(default=8088, env="SIGNET_PORT")
-    debug: bool = Field(default=False, env="SIGNET_DEBUG")
+    # Storage configuration
+    storage_type: str = "sqlite"  # "sqlite" or "postgres"
+    postgres_url: Optional[str] = None
     
-    # Database configuration
-    database_url: str = Field(
-        default="sqlite:///./signet.db",
-        env="DATABASE_URL"
+    # Reserved capacity configuration
+    reserved_config_path: Optional[str] = None
+
+def load_settings() -> Settings:
+    raw = _getenv("SP_API_KEYS", "AB_API_KEYS", default="{}")
+    try:
+        mapping = json.loads(raw)
+    except Exception:
+        mapping = {}
+    api_keys = {}
+    for k, v in mapping.items():
+        api_keys[k] = TenantConfig(**v)
+
+    hel = _getenv("SP_HEL_ALLOWLIST", "AB_HEL_ALLOWLIST", default="")
+    hel_allowlist = [h.strip() for h in hel.split(",") if h.strip()]
+
+    # Determine storage type
+    storage_type = _getenv("SP_STORAGE", default="sqlite").lower()
+    
+    # Database configuration based on storage type
+    if storage_type == "postgres":
+        db_path = _getenv("SP_POSTGRES_URL", "DATABASE_URL", default="")
+        if not db_path:
+            print("Warning: PostgreSQL storage selected but no connection string provided")
+            storage_type = "sqlite"
+            db_path = _getenv("SP_DB_PATH", "AB_DB_PATH", default="./data/signet.db")
+    else:
+        db_path = _getenv("SP_DB_PATH", "AB_DB_PATH", default="./data/signet.db")
+
+    settings = Settings(
+        api_keys=api_keys,
+        hel_allowlist=hel_allowlist,
+        db_path=db_path,
+        receipts_jsonl=_getenv("SP_RECEIPTS_JSONL", "AB_RECEIPTS_JSONL"),
+        private_key_b64=_getenv("SP_PRIVATE_KEY_B64", "AB_PRIVATE_KEY_B64"),
+        kid=_getenv("SP_KID", "AB_KID"),
+        stripe_api_key=_getenv("SP_STRIPE_API_KEY", "STRIPE_API_KEY"),
+        openai_api_key=_getenv("SP_OPENAI_API_KEY", "OPENAI_API_KEY"),
+        storage_type=storage_type,
+        postgres_url=db_path if storage_type == "postgres" else None,
+        reserved_config_path=_getenv("SP_RESERVED_CONFIG", default="./reserved.json")
     )
-    
-    # Redis configuration (optional)
-    redis_url: Optional[str] = Field(default=None, env="REDIS_URL")
-    
-    # Cryptographic keys
-    private_key: str = Field(
-        default="demo_private_key_change_in_production",
-        env="SIGNET_PRIVATE_KEY"
-    )
-    
-    # External service configuration
-    openai_api_key: Optional[str] = Field(default=None, env="OPENAI_API_KEY")
-    stripe_api_key: Optional[str] = Field(default=None, env="STRIPE_API_KEY")
-    
-    # Policy configuration
-    allowed_hosts: List[str] = Field(
-        default=["api.openai.com", "api.anthropic.com"],
-        env="SIGNET_ALLOWED_HOSTS"
-    )
-    
-    # Billing configuration
-    enable_billing: bool = Field(default=True, env="SIGNET_ENABLE_BILLING")
-    default_vex_limit: int = Field(default=1000, env="SIGNET_DEFAULT_VEX_LIMIT")
-    default_fu_limit: int = Field(default=5000, env="SIGNET_DEFAULT_FU_LIMIT")
-    
-    # Security configuration
-    max_payload_size: int = Field(default=10_000_000, env="SIGNET_MAX_PAYLOAD_SIZE")  # 10MB
-    max_response_size: int = Field(default=50_000_000, env="SIGNET_MAX_RESPONSE_SIZE")  # 50MB
-    request_timeout: int = Field(default=30, env="SIGNET_REQUEST_TIMEOUT")  # seconds
-    
-    # Monitoring configuration
-    enable_metrics: bool = Field(default=True, env="SIGNET_ENABLE_METRICS")
-    log_level: str = Field(default="INFO", env="SIGNET_LOG_LEVEL")
-    
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        case_sensitive = False
+    return settings
 
-
-# Global settings instance
-_settings: Optional[Settings] = None
-
-
-def get_settings() -> Settings:
-    """Get application settings (singleton pattern)"""
-    global _settings
-    if _settings is None:
-        _settings = Settings()
-    return _settings
-
-
-def reload_settings() -> Settings:
-    """Reload settings (useful for testing)"""
-    global _settings
-    _settings = None
-    return get_settings()
+def create_storage_from_settings(settings: Settings):
+    """Factory function to create appropriate storage backend"""
+    if settings.storage_type == "postgres":
+        from .pipeline.storage_postgres import PostgreSQLStorage
+        return PostgreSQLStorage(settings.postgres_url)
+    else:
+        from .pipeline.storage import Storage
+        return Storage(settings.db_path)

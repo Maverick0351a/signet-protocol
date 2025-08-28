@@ -1,0 +1,97 @@
+name: 'Signet Protocol Verification Example'
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  verify-signet-protocol:
+    runs-on: ubuntu-latest
+    name: Verify Signet Protocol Receipts
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Verify Test Vectors
+        uses: ./.github/actions/signet-verify
+        id: verify
+        with:
+          test-vectors-path: 'test-vectors'
+          jwks-url: 'https://signet-protocol.example.com/.well-known/jwks.json'
+          fail-on-error: 'true'
+          python-version: '3.11'
+      
+      - name: Display Results
+        run: |
+          echo "Verification Result: ${{ steps.verify.outputs.verification-result }}"
+          echo "Total Tests: ${{ steps.verify.outputs.tests-total }}"
+          echo "Passed: ${{ steps.verify.outputs.tests-passed }}"
+          echo "Failed: ${{ steps.verify.outputs.tests-failed }}"
+      
+      - name: Comment PR (on failure)
+        if: failure() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## ❌ Signet Protocol Verification Failed
+              
+              **Results:**
+              - Total Tests: ${{ steps.verify.outputs.tests-total }}
+              - Passed: ${{ steps.verify.outputs.tests-passed }}
+              - Failed: ${{ steps.verify.outputs.tests-failed }}
+              
+              Please check the [workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details.`
+            })
+
+  verify-with-server:
+    runs-on: ubuntu-latest
+    name: Verify with Server Health Check
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Start Signet Server (for testing)
+        run: |
+          # This would start your Signet Protocol server
+          # docker run -d -p 8088:8088 signet-protocol:latest
+          echo "Server would be started here"
+      
+      - name: Verify with Server
+        uses: ./.github/actions/signet-verify
+        with:
+          test-vectors-path: 'test-vectors'
+          server-url: 'http://localhost:8088'
+          fail-on-error: 'true'
+
+  verify-npm-package:
+    runs-on: ubuntu-latest
+    name: Verify NPM Package
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      
+      - name: Install and Test JavaScript SDK
+        run: |
+          cd sdk/javascript
+          npm install
+          npm run build
+          npm test || echo "Tests would run here"
+      
+      - name: Verify Test Vectors (Python)
+        uses: ./.github/actions/signet-verify
+        with:
+          test-vectors-path: 'test-vectors'

@@ -1,106 +1,45 @@
-#!/usr/bin/env python3
-"""
-Signet Protocol Cryptographic Utilities
+import base64, json, time
+from typing import Optional, Dict, Any
+from nacl.signing import SigningKey
+from nacl.encoding import RawEncoder
+from .jcs import canonicalize, sha256_hexdigest
 
-Provides Ed25519 signing, verification, and key management
-for cryptographic receipts and audit trails.
-"""
+def b64url_decode_nopad(s: str) -> bytes:
+    pad = '=' * ((4 - len(s) % 4) % 4)
+    return base64.urlsafe_b64decode(s + pad)
 
-import json
-import hashlib
-from typing import Dict, Any, Optional
-from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
-from cryptography.exceptions import InvalidSignature
-import base64
+def b64url_encode(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).decode().rstrip('=')
 
+def load_signing_key(seed_b64url: Optional[str]) -> Optional[SigningKey]:
+    if not seed_b64url:
+        return None
+    seed = b64url_decode_nopad(seed_b64url)
+    if len(seed) != 32:
+        raise ValueError("SP_PRIVATE_KEY_B64 must be a 32-byte Ed25519 seed (base64url)")
+    return SigningKey(seed, encoder=RawEncoder)
 
-class SigningManager:
-    """Manages cryptographic signing for receipts"""
-    
-    def __init__(self, private_key_pem: Optional[str] = None):
-        """Initialize with private key or generate new one"""
-        if private_key_pem and private_key_pem != "demo_private_key_change_in_production":
-            # Load existing key
-            self.private_key = serialization.load_pem_private_key(
-                private_key_pem.encode(),
-                password=None
-            )
-        else:
-            # Generate new key for demo/development
-            self.private_key = Ed25519PrivateKey.generate()
-        
-        self.public_key = self.private_key.public_key()
-    
-    def sign_data(self, data: Dict[str, Any]) -> str:
-        """Sign data and return base64 signature"""
-        # Canonicalize JSON (RFC 8785 JCS)
-        canonical_json = self._canonicalize_json(data)
-        
-        # Sign the canonical bytes
-        signature = self.private_key.sign(canonical_json.encode('utf-8'))
-        
-        # Return base64 encoded signature
-        return base64.b64encode(signature).decode('ascii')
-    
-    def verify_signature(self, data: Dict[str, Any], signature: str) -> bool:
-        """Verify a signature against data"""
-        try:
-            # Canonicalize JSON
-            canonical_json = self._canonicalize_json(data)
-            
-            # Decode signature
-            sig_bytes = base64.b64decode(signature)
-            
-            # Verify signature
-            self.public_key.verify(sig_bytes, canonical_json.encode('utf-8'))
-            return True
-        except (InvalidSignature, Exception):
-            return False
-    
-    def get_public_key_pem(self) -> str:
-        """Get public key in PEM format"""
-        return self.public_key.public_bytes(
-            encoding=serialization.Encoding.PEM,
-            format=serialization.PublicFormat.SubjectPublicKeyInfo
-        ).decode('ascii')
-    
-    def get_public_key_jwk(self) -> Dict[str, str]:
-        """Get public key in JWK format for JWKS endpoint"""
-        public_bytes = self.public_key.public_bytes(
-            encoding=serialization.Encoding.Raw,
-            format=serialization.PublicFormat.Raw
-        )
-        
-        return {
-            "kty": "OKP",
-            "crv": "Ed25519",
-            "x": base64.urlsafe_b64encode(public_bytes).decode('ascii').rstrip('='),
-            "use": "sig",
-            "alg": "EdDSA"
-        }
-    
-    def _canonicalize_json(self, data: Dict[str, Any]) -> str:
-        """Canonicalize JSON according to RFC 8785 JCS"""
-        return json.dumps(data, ensure_ascii=True, separators=(',', ':'), sort_keys=True)
+def make_jwk_from_signing_key(kid: str, sk: SigningKey) -> Dict[str, Any]:
+    vk = sk.verify_key
+    x = b64url_encode(bytes(vk))
+    return {
+        "kty": "OKP",
+        "crv": "Ed25519",
+        "x": x,
+        "kid": kid,
+        "use": "sig",
+        "alg": "EdDSA"
+    }
 
-
-def compute_content_hash(data: Any) -> str:
-    """Compute SHA-256 hash of content"""
-    if isinstance(data, dict):
-        # Canonicalize JSON first
-        canonical = json.dumps(data, ensure_ascii=True, separators=(',', ':'), sort_keys=True)
-        content = canonical.encode('utf-8')
-    elif isinstance(data, str):
-        content = data.encode('utf-8')
-    else:
-        content = str(data).encode('utf-8')
-    
-    hash_obj = hashlib.sha256(content)
-    return f"sha256:{hash_obj.hexdigest()}"
-
-
-def generate_trace_id() -> str:
-    """Generate a unique trace ID"""
-    import uuid
-    return f"signet-{uuid.uuid4().hex[:12]}"
+def sign_export_bundle(sk: SigningKey, kid: str, bundle: Dict[str, Any]) -> Dict[str, str]:
+    canon = canonicalize(bundle).encode("utf-8")
+    bundle_cid = "sha256:" + sha256_hexdigest(canon)
+    exported_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    payload = f"{bundle_cid}|{bundle.get('trace_id')}|{exported_at}".encode("utf-8")
+    sig = sk.sign(payload).signature
+    return {
+        "bundle_cid": bundle_cid,
+        "exported_at": exported_at,
+        "signature": b64url_encode(sig),
+        "kid": kid
+    }

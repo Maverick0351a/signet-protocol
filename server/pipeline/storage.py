@@ -1,291 +1,157 @@
-#!/usr/bin/env python3
+import sqlite3, json, os, threading
+from typing import Optional, Dict, Any, List
+
+INIT_SQL = """
+PRAGMA journal_mode=WAL;
+PRAGMA foreign_keys=ON;
+CREATE TABLE IF NOT EXISTS receipts(
+  trace_id TEXT NOT NULL,
+  hop INTEGER NOT NULL,
+  ts TEXT NOT NULL,
+  cid TEXT NOT NULL,
+  canon TEXT NOT NULL,
+  algo TEXT NOT NULL,
+  prev_receipt_hash TEXT,
+  policy_json TEXT NOT NULL,
+  tenant TEXT NOT NULL,
+  receipt_hash TEXT NOT NULL,
+  PRIMARY KEY(trace_id, hop)
+);
+CREATE TABLE IF NOT EXISTS heads(
+  trace_id TEXT PRIMARY KEY,
+  last_hop INTEGER NOT NULL,
+  last_receipt_hash TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS idempotency(
+  api_key TEXT NOT NULL,
+  key TEXT NOT NULL,
+  response_json TEXT NOT NULL,
+  PRIMARY KEY(api_key, key)
+);
+CREATE TABLE IF NOT EXISTS usage_ledger(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  api_key TEXT NOT NULL,
+  tenant TEXT NOT NULL,
+  trace_id TEXT NOT NULL,
+  hop INTEGER NOT NULL,
+  verified INTEGER NOT NULL,
+  vex_units INTEGER NOT NULL,
+  fu_tokens INTEGER NOT NULL,
+  ts TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS billing_queue(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  api_key TEXT NOT NULL,
+  stripe_item TEXT NOT NULL,
+  units INTEGER NOT NULL,
+  ts INTEGER NOT NULL,
+  retries INTEGER NOT NULL DEFAULT 0
+);
 """
-Signet Protocol Storage Backend
 
-Abstract storage interface with SQLite and PostgreSQL implementations
-for receipts, billing data, and tenant configuration.
-"""
+class Storage:
+    def __init__(self, path: str):
+        os.makedirs(os.path.dirname(path) if os.path.dirname(path) else ".", exist_ok=True)
+        self.path = path
+        with self._conn() as c:
+            c.executescript(INIT_SQL)
 
-import json
-import sqlite3
-from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional, List
-from datetime import datetime
+    def _conn(self):
+        conn = sqlite3.connect(self.path, timeout=30, isolation_level=None)
+        conn.row_factory = sqlite3.Row
+        return conn
 
+    def get_head(self, trace_id: str):
+        with self._conn() as c:
+            row = c.execute("SELECT trace_id,last_hop,last_receipt_hash FROM heads WHERE trace_id=?", (trace_id,)).fetchone()
+            return dict(row) if row else None
 
-class StorageBackend(ABC):
-    """Abstract storage backend interface"""
-    
-    @abstractmethod
-    async def store_receipt(self, receipt_data: Dict[str, Any], idempotency_key: Optional[str] = None) -> None:
-        """Store a receipt"""
-        pass
-    
-    @abstractmethod
-    async def get_receipt(self, receipt_id: str, api_key: str) -> Optional[Dict[str, Any]]:
-        """Get a receipt by ID"""
-        pass
-    
-    @abstractmethod
-    async def get_by_idempotency_key(self, idempotency_key: str, api_key: str) -> Optional[Dict[str, Any]]:
-        """Get receipt by idempotency key"""
-        pass
-    
-    @abstractmethod
-    async def list_receipts(self, api_key: str, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
-        """List receipts for API key"""
-        pass
-    
-    @abstractmethod
-    async def get_receipts_for_tenant(self, tenant_id: str) -> List[Dict[str, Any]]:
-        """Get all receipts for tenant"""
-        pass
-    
-    @abstractmethod
-    async def get_tenant_config(self, api_key: str) -> Optional[Dict[str, Any]]:
-        """Get tenant configuration"""
-        pass
-    
-    @abstractmethod
-    async def get_current_usage(self, api_key: str) -> Dict[str, int]:
-        """Get current usage for tenant"""
-        pass
-    
-    @abstractmethod
-    async def record_usage(self, usage_record) -> None:
-        """Record usage for billing"""
-        pass
-    
-    @abstractmethod
-    async def get_usage_summary(self, api_key: str, start_date: Optional[datetime], end_date: Optional[datetime]) -> Dict[str, Any]:
-        """Get usage summary"""
-        pass
+    def append_receipt(self, receipt: Dict[str, Any], expected_prev: Optional[str]) -> int:
+        with self._conn() as c:
+            c.execute("BEGIN IMMEDIATE")
+            head = c.execute("SELECT trace_id,last_hop,last_receipt_hash FROM heads WHERE trace_id=?", (receipt["trace_id"],)).fetchone()
+            if head:
+                if head["last_receipt_hash"] != expected_prev:
+                    c.execute("ROLLBACK")
+                    raise StorageConflict("prev_receipt_hash mismatch")
+                hop = head["last_hop"] + 1
+            else:
+                if expected_prev is not None:
+                    c.execute("ROLLBACK")
+                    raise StorageConflict("unexpected prev_receipt_hash")
+                hop = 1
+            receipt["hop"] = hop
+            c.execute("""INSERT INTO receipts(trace_id,hop,ts,cid,canon,algo,prev_receipt_hash,policy_json,tenant,receipt_hash)
+                         VALUES(?,?,?,?,?,?,?,?,?,?)""",
+                      (receipt["trace_id"], hop, receipt["ts"], receipt["cid"], receipt["canon"], receipt["algo"],
+                       receipt.get("prev_receipt_hash"), json.dumps(receipt["policy"]), receipt["tenant"], receipt["receipt_hash"]))
+            if head:
+                c.execute("UPDATE heads SET last_hop=?, last_receipt_hash=? WHERE trace_id=?", (hop, receipt["receipt_hash"], receipt["trace_id"]))
+            else:
+                c.execute("INSERT INTO heads(trace_id,last_hop,last_receipt_hash) VALUES(?,?,?)", (receipt["trace_id"], hop, receipt["receipt_hash"]))
+            c.execute("COMMIT")
+            return hop
 
+    def get_chain(self, trace_id: str):
+        with self._conn() as c:
+            rows = c.execute("SELECT * FROM receipts WHERE trace_id=? ORDER BY hop ASC", (trace_id,)).fetchall()
+            out = []
+            for r in rows:
+                out.append({
+                    "trace_id": r["trace_id"],
+                    "hop": r["hop"],
+                    "ts": r["ts"],
+                    "cid": r["cid"],
+                    "canon": r["canon"],
+                    "algo": r["algo"],
+                    "prev_receipt_hash": r["prev_receipt_hash"],
+                    "policy": json.loads(r["policy_json"]),
+                    "tenant": r["tenant"],
+                    "receipt_hash": r["receipt_hash"]
+                })
+            return out
 
-class SQLiteStorage(StorageBackend):
-    """SQLite storage implementation"""
-    
-    def __init__(self, db_path: str = "signet.db"):
-        self.db_path = db_path
-        self._init_db()
-    
-    def _init_db(self):
-        """Initialize database schema"""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        
-        # Receipts table
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS receipts (
-                receipt_id TEXT PRIMARY KEY,
-                trace_id TEXT NOT NULL,
-                api_key TEXT NOT NULL,
-                payload_type TEXT NOT NULL,
-                target_type TEXT NOT NULL,
-                receipt_data TEXT NOT NULL,
-                idempotency_key TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                UNIQUE(idempotency_key, api_key)
-            )
-        """)
-        
-        # Usage table
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS usage (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                tenant_id TEXT NOT NULL,
-                usage_type TEXT NOT NULL,
-                amount INTEGER NOT NULL,
-                timestamp TIMESTAMP NOT NULL,
-                metadata TEXT
-            )
-        """)
-        
-        # Tenant config table
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS tenant_config (
-                api_key TEXT PRIMARY KEY,
-                config_data TEXT NOT NULL,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-        
-        conn.commit()
-        conn.close()
-    
-    async def store_receipt(self, receipt_data: Dict[str, Any], idempotency_key: Optional[str] = None) -> None:
-        """Store a receipt"""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        
-        try:
-            cursor.execute("""
-                INSERT OR REPLACE INTO receipts 
-                (receipt_id, trace_id, api_key, payload_type, target_type, receipt_data, idempotency_key)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (
-                receipt_data['receipt_id'],
-                receipt_data['trace_id'],
-                receipt_data['api_key'],
-                receipt_data['payload_type'],
-                receipt_data['target_type'],
-                json.dumps(receipt_data),
-                idempotency_key
-            ))
-            conn.commit()
-        finally:
-            conn.close()
-    
-    async def get_receipt(self, receipt_id: str, api_key: str) -> Optional[Dict[str, Any]]:
-        """Get a receipt by ID"""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        
-        try:
-            cursor.execute(
-                "SELECT receipt_data FROM receipts WHERE receipt_id = ? AND api_key = ?",
-                (receipt_id, api_key)
-            )
-            row = cursor.fetchone()
-            if row:
-                return json.loads(row[0])
-            return None
-        finally:
-            conn.close()
-    
-    async def get_by_idempotency_key(self, idempotency_key: str, api_key: str) -> Optional[Dict[str, Any]]:
-        """Get receipt by idempotency key"""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        
-        try:
-            cursor.execute(
-                "SELECT receipt_data FROM receipts WHERE idempotency_key = ? AND api_key = ?",
-                (idempotency_key, api_key)
-            )
-            row = cursor.fetchone()
-            if row:
-                return json.loads(row[0])
-            return None
-        finally:
-            conn.close()
-    
-    async def list_receipts(self, api_key: str, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
-        """List receipts for API key"""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        
-        try:
-            cursor.execute(
-                "SELECT receipt_data FROM receipts WHERE api_key = ? ORDER BY created_at DESC LIMIT ? OFFSET ?",
-                (api_key, limit, offset)
-            )
-            rows = cursor.fetchall()
-            return [json.loads(row[0]) for row in rows]
-        finally:
-            conn.close()
-    
-    async def get_receipts_for_tenant(self, tenant_id: str) -> List[Dict[str, Any]]:
-        """Get all receipts for tenant"""
-        return await self.list_receipts(tenant_id, limit=10000)
-    
-    async def get_tenant_config(self, api_key: str) -> Optional[Dict[str, Any]]:
-        """Get tenant configuration"""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        
-        try:
-            cursor.execute(
-                "SELECT config_data FROM tenant_config WHERE api_key = ?",
-                (api_key,)
-            )
-            row = cursor.fetchone()
-            if row:
-                return json.loads(row[0])
-            return None
-        finally:
-            conn.close()
-    
-    async def get_current_usage(self, api_key: str) -> Dict[str, int]:
-        """Get current usage for tenant"""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        
-        try:
-            cursor.execute("""
-                SELECT usage_type, SUM(amount) 
-                FROM usage 
-                WHERE tenant_id = ? AND timestamp >= date('now', 'start of month')
-                GROUP BY usage_type
-            """, (api_key,))
-            
-            usage = {'vex_used': 0, 'fu_used': 0}
-            for usage_type, amount in cursor.fetchall():
-                usage[f"{usage_type}_used"] = amount
-            
-            return usage
-        finally:
-            conn.close()
-    
-    async def record_usage(self, usage_record) -> None:
-        """Record usage for billing"""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        
-        try:
-            cursor.execute("""
-                INSERT INTO usage (tenant_id, usage_type, amount, timestamp, metadata)
-                VALUES (?, ?, ?, ?, ?)
-            """, (
-                usage_record.tenant_id,
-                usage_record.usage_type,
-                usage_record.amount,
-                usage_record.timestamp,
-                json.dumps(usage_record.metadata) if usage_record.metadata else None
-            ))
-            conn.commit()
-        finally:
-            conn.close()
-    
-    async def get_usage_summary(self, api_key: str, start_date: Optional[datetime], end_date: Optional[datetime]) -> Dict[str, Any]:
-        """Get usage summary"""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        
-        try:
-            query = "SELECT usage_type, SUM(amount) FROM usage WHERE tenant_id = ?"
-            params = [api_key]
-            
-            if start_date:
-                query += " AND timestamp >= ?"
-                params.append(start_date)
-            
-            if end_date:
-                query += " AND timestamp <= ?"
-                params.append(end_date)
-            
-            query += " GROUP BY usage_type"
-            
-            cursor.execute(query, params)
-            
-            summary = {'vex_used': 0, 'fu_used': 0}
-            for usage_type, amount in cursor.fetchall():
-                summary[f"{usage_type}_used"] = amount
-            
-            return summary
-        finally:
-            conn.close()
+    def cache_idempotent(self, api_key: str, idem_key: str, response_json: Dict[str, Any]):
+        with self._conn() as c:
+            c.execute("INSERT OR REPLACE INTO idempotency(api_key,key,response_json) VALUES(?,?,?)",
+                      (api_key, idem_key, json.dumps(response_json)))
 
+    def get_idempotent(self, api_key: str, idem_key: str):
+        with self._conn() as c:
+            row = c.execute("SELECT response_json FROM idempotency WHERE api_key=? AND key=?", (api_key, idem_key)).fetchone()
+            if not row:
+                return None
+            return json.loads(row["response_json"])
 
-def get_storage(database_url: str) -> StorageBackend:
-    """Factory function to get storage backend"""
-    if database_url.startswith('sqlite'):
-        db_path = database_url.replace('sqlite:///', '')
-        return SQLiteStorage(db_path)
-    elif database_url.startswith('postgresql'):
-        # Import PostgreSQL implementation if needed
-        from .storage_postgres import PostgreSQLStorage
-        return PostgreSQLStorage(database_url)
-    else:
-        # Default to SQLite
-        return SQLiteStorage()
+    def record_usage(self, api_key: str, tenant: str, trace_id: str, hop: int, verified: bool, vex_units: int, fu_tokens: int, ts: str):
+        with self._conn() as c:
+            c.execute("""INSERT INTO usage_ledger(api_key,tenant,trace_id,hop,verified,vex_units,fu_tokens,ts)
+                         VALUES(?,?,?,?,?,?,?,?)""",
+                      (api_key, tenant, trace_id, hop, 1 if verified else 0, vex_units, fu_tokens, ts))
+
+    def enqueue_billing(self, api_key: str, stripe_item: str, units: int, ts_unix: int):
+        with self._conn() as c:
+            c.execute("""INSERT INTO billing_queue(api_key,stripe_item,units,ts,retries)
+                         VALUES(?,?,?,?,0)""", (api_key, stripe_item, units, ts_unix))
+
+    def dequeue_billing_batch(self, limit: int = 100):
+        with self._conn() as c:
+            rows = c.execute("SELECT * FROM billing_queue ORDER BY id ASC LIMIT ?", (limit,)).fetchall()
+            return [dict(r) for r in rows]
+
+    def delete_billing_items(self, ids):
+        if not ids:
+            return
+        with self._conn() as c:
+            q = "DELETE FROM billing_queue WHERE id IN ({})".format(",".join("?"*len(ids)))
+            c.execute(q, ids)
+
+    def bump_billing_retries(self, ids):
+        if not ids:
+            return
+        with self._conn() as c:
+            q = "UPDATE billing_queue SET retries = retries + 1 WHERE id IN ({})".format(",".join("?"*len(ids)))
+            c.execute(q, ids)
+
+class StorageConflict(Exception):
+    pass

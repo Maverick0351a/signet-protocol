@@ -1,0 +1,154 @@
+name: 'Signet Protocol Verification'
+description: 'Verify Signet Protocol receipts and chains in CI/CD pipelines'
+author: 'Signet Protocol Team'
+
+inputs:
+  test-vectors-path:
+    description: 'Path to test vectors directory'
+    required: false
+    default: 'test-vectors'
+  
+  jwks-url:
+    description: 'JWKS URL for signature verification'
+    required: false
+    default: ''
+  
+  server-url:
+    description: 'Signet Protocol server URL for health checks'
+    required: false
+    default: ''
+  
+  fail-on-error:
+    description: 'Fail the action if verification fails'
+    required: false
+    default: 'true'
+  
+  python-version:
+    description: 'Python version to use'
+    required: false
+    default: '3.11'
+
+outputs:
+  verification-result:
+    description: 'Result of verification (passed/failed)'
+    value: ${{ steps.verify.outputs.result }}
+  
+  tests-total:
+    description: 'Total number of tests run'
+    value: ${{ steps.verify.outputs.total }}
+  
+  tests-passed:
+    description: 'Number of tests passed'
+    value: ${{ steps.verify.outputs.passed }}
+  
+  tests-failed:
+    description: 'Number of tests failed'
+    value: ${{ steps.verify.outputs.failed }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ inputs.python-version }}
+    
+    - name: Install Signet Protocol SDK
+      shell: bash
+      run: |
+        pip install cryptography requests
+        # Install from local path if available, otherwise from PyPI
+        if [ -f "sdk/python/setup.py" ]; then
+          pip install -e sdk/python/
+        else
+          pip install signet-verify
+        fi
+    
+    - name: Verify Test Vectors
+      id: verify
+      shell: bash
+      run: |
+        # Set up verification command
+        if [ -f "tools/signet_verify_cli.py" ]; then
+          VERIFY_CMD="python tools/signet_verify_cli.py"
+        else
+          VERIFY_CMD="signet-verify"
+        fi
+        
+        # Build command arguments
+        ARGS="test-vectors ${{ inputs.test-vectors-path }}"
+        
+        if [ -n "${{ inputs.jwks-url }}" ]; then
+          ARGS="$ARGS --jwks ${{ inputs.jwks-url }}"
+        fi
+        
+        if [ "${{ inputs.fail-on-error }}" = "true" ]; then
+          ARGS="$ARGS --ci"
+        fi
+        
+        ARGS="$ARGS --verbose"
+        
+        echo "Running: $VERIFY_CMD $ARGS"
+        
+        # Run verification and capture output
+        if OUTPUT=$($VERIFY_CMD $ARGS 2>&1); then
+          RESULT="passed"
+          EXIT_CODE=0
+        else
+          RESULT="failed"
+          EXIT_CODE=1
+        fi
+        
+        echo "$OUTPUT"
+        
+        # Parse results from output
+        TOTAL=$(echo "$OUTPUT" | grep "Total tests:" | sed 's/.*Total tests: \([0-9]*\).*/\1/' || echo "0")
+        PASSED=$(echo "$OUTPUT" | grep "Passed:" | sed 's/.*Passed: \([0-9]*\).*/\1/' || echo "0")
+        FAILED=$(echo "$OUTPUT" | grep "Failed:" | sed 's/.*Failed: \([0-9]*\).*/\1/' || echo "0")
+        
+        # Set outputs
+        echo "result=$RESULT" >> $GITHUB_OUTPUT
+        echo "total=$TOTAL" >> $GITHUB_OUTPUT
+        echo "passed=$PASSED" >> $GITHUB_OUTPUT
+        echo "failed=$FAILED" >> $GITHUB_OUTPUT
+        
+        # Create summary
+        echo "## 🔍 Signet Protocol Verification Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+        echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+        echo "| **Result** | $RESULT |" >> $GITHUB_STEP_SUMMARY
+        echo "| **Total Tests** | $TOTAL |" >> $GITHUB_STEP_SUMMARY
+        echo "| **Passed** | $PASSED |" >> $GITHUB_STEP_SUMMARY
+        echo "| **Failed** | $FAILED |" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [ "$RESULT" = "passed" ]; then
+          echo "✅ All Signet Protocol verifications passed!" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ Some Signet Protocol verifications failed!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Failed Tests" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "$OUTPUT" | grep "❌" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        exit $EXIT_CODE
+    
+    - name: Verify Server Health (if provided)
+      if: inputs.server-url != ''
+      shell: bash
+      run: |
+        if [ -f "tools/signet_verify_cli.py" ]; then
+          VERIFY_CMD="python tools/signet_verify_cli.py"
+        else
+          VERIFY_CMD="signet-verify"
+        fi
+        
+        echo "Checking server health: ${{ inputs.server-url }}"
+        $VERIFY_CMD server "${{ inputs.server-url }}" --verbose
+
+branding:
+  icon: 'shield'
+  color: 'blue'

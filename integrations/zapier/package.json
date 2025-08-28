@@ -1,0 +1,39 @@
+{
+  "name": "signet-protocol-zapier",
+  "version": "1.0.0",
+  "description": "Zapier integration for Signet Protocol verified exchanges",
+  "main": "index.js",
+  "scripts": {
+    "test": "zapier test",
+    "validate": "zapier validate",
+    "build": "zapier build",
+    "push": "zapier push"
+  },
+  "keywords": [
+    "zapier",
+    "signet",
+    "protocol",
+    "verification",
+    "ai",
+    "receipts",
+    "blockchain"
+  ],
+  "author": "ODIN Protocol Corporation",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "zapier-platform-core": "^15.0.0"
+  },
+  "devDependencies": {
+    "zapier-platform-cli": "^15.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "zapier": {
+    "includeInBuild": [
+      "index.js",
+      "package.json",
+      "README.md"
+    ]
+  }
+}

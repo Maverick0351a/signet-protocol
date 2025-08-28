@@ -1,0 +1,49 @@
+{
+  "id": "signet-protocol-env",
+  "name": "Signet Protocol Environment",
+  "values": [
+    {
+      "key": "SIGNET_BASE_URL",
+      "value": "http://localhost:8088",
+      "description": "Base URL for Signet Protocol server",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "SIGNET_API_KEY",
+      "value": "demo_key",
+      "description": "API key for Signet Protocol authentication",
+      "type": "secret",
+      "enabled": true
+    },
+    {
+      "key": "TRACE_ID",
+      "value": "",
+      "description": "Current trace ID for receipt chain operations",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "CHAIN_TRACE_ID",
+      "value": "",
+      "description": "Trace ID for multi-hop chain testing",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "FORWARD_URL",
+      "value": "https://postman-echo.com/post",
+      "description": "URL for forwarding verified exchanges",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "JWKS_URL",
+      "value": "{{SIGNET_BASE_URL}}/.well-known/jwks.json",
+      "description": "JWKS endpoint for signature verification",
+      "type": "default",
+      "enabled": true
+    }
+  ],
+  "_postman_variable_scope": "environment"
+}

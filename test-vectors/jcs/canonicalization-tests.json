@@ -1,0 +1,65 @@
+{
+  "description": "RFC 8785 JSON Canonicalization Scheme test cases",
+  "tests": [
+    {
+      "name": "basic_object",
+      "input": {
+        "b": 2,
+        "a": 1,
+        "c": 3
+      },
+      "expected": "{\"a\":1,\"b\":2,\"c\":3}"
+    },
+    {
+      "name": "nested_object",
+      "input": {
+        "z": {
+          "y": 2,
+          "x": 1
+        },
+        "a": 1
+      },
+      "expected": "{\"a\":1,\"z\":{\"x\":1,\"y\":2}}"
+    },
+    {
+      "name": "array_with_objects",
+      "input": {
+        "items": [
+          {"b": 2, "a": 1},
+          {"d": 4, "c": 3}
+        ]
+      },
+      "expected": "{\"items\":[{\"a\":1,\"b\":2},{\"c\":3,\"d\":4}]}"
+    },
+    {
+      "name": "receipt_structure",
+      "input": {
+        "trace_id": "test-001",
+        "policy": {
+          "engine": "HEL",
+          "allowed": true
+        },
+        "hop": 1,
+        "algo": "sha256"
+      },
+      "expected": "{\"algo\":\"sha256\",\"hop\":1,\"policy\":{\"allowed\":true,\"engine\":\"HEL\"},\"trace_id\":\"test-001\"}"
+    },
+    {
+      "name": "unicode_handling",
+      "input": {
+        "unicode": "Hello 世界",
+        "emoji": "🔗"
+      },
+      "expected": "{\"emoji\":\"🔗\",\"unicode\":\"Hello 世界\"}"
+    },
+    {
+      "name": "number_precision",
+      "input": {
+        "float": 123.456,
+        "integer": 789,
+        "zero": 0
+      },
+      "expected": "{\"float\":123.456,\"integer\":789,\"zero\":0}"
+    }
+  ]
+}

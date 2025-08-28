@@ -1,0 +1,52 @@
+{
+  "acme": {
+    "vex_reserved": 10000,
+    "fu_reserved": 50000,
+    "vex_overage_tiers": [
+      {
+        "threshold": 5000,
+        "price_per_unit": 0.005,
+        "stripe_item": "price_1S0t0MLcPYf7t6osWsnR1zSS"
+      },
+      {
+        "threshold": 10000,
+        "price_per_unit": 0.008,
+        "stripe_item": "price_1S0t0MLcPYf7t6oszotpd1au"
+      }
+    ],
+    "fu_overage_tiers": [
+      {
+        "threshold": 25000,
+        "price_per_unit": 0.001,
+        "stripe_item": "price_1S0t0OLcPYf7t6os3M3aWNPz"
+      },
+      {
+        "threshold": 50000,
+        "price_per_unit": 0.0008,
+        "stripe_item": "price_1S0t0OLcPYf7t6osv1Y8JMxp"
+      }
+    ],
+    "vex_reserved_item": "price_1S0t0PLcPYf7t6os2j1JhpRx",
+    "fu_reserved_item": "price_1S0t0PLcPYf7t6os2j1JhpRx"
+  },
+  "enterprise_customer": {
+    "vex_reserved": 100000,
+    "fu_reserved": 500000,
+    "vex_overage_tiers": [
+      {
+        "threshold": 50000,
+        "price_per_unit": 0.005,
+        "stripe_item": "price_1S0t0MLcPYf7t6osWsnR1zSS"
+      }
+    ],
+    "fu_overage_tiers": [
+      {
+        "threshold": 250000,
+        "price_per_unit": 0.001,
+        "stripe_item": "price_1S0t0OLcPYf7t6os3M3aWNPz"
+      }
+    ],
+    "vex_reserved_item": "price_1S0t0QLcPYf7t6ostUSgtTdB",
+    "fu_reserved_item": "price_1S0t0QLcPYf7t6ostUSgtTdB"
+  }
+}
