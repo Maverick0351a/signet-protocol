@@ -9,15 +9,23 @@ permissions:
 jobs:
   tests:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [ '3.10', '3.11', '3.12' ]
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
       - name: Install deps
         run: |
-          pip install -r requirements-dev.txt
+          pip install -r requirements-dev.txt --disable-pip-version-check --no-cache-dir
       - name: Run tests
         run: |
           pytest --maxfail=1 --disable-warnings --json-report --json-report-file=report.json
@@ -36,7 +44,8 @@ val=f"{passed}p-{failed}f-{skipped}s"
 svg=f'''<svg xmlns="http://www.w3.org/2000/svg" width="140" height="20" role="img" aria-label="{label}: {val}"><linearGradient id="s" x2="0" y2="100%"><stop offset="0" stop-color="#bbb" stop-opacity=".1"/><stop offset="1" stop-opacity=".1"/></linearGradient><clipPath id="r"><rect width="140" height="20" rx="3" fill="#fff"/></clipPath><g clip-path="url(#r)"><rect width="60" height="20" fill="#555"/><rect x="60" width="80" height="20" fill="#{'4c1' if color=='brightgreen' else 'e05d44'}"/><rect width="140" height="20" fill="url(#s)"/></g><g fill="#fff" text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" font-size="11"><text x="30" y="15" fill="#010101" fill-opacity=".3">{label}</text><text x="30" y="14">{label}</text><text x="100" y="15" fill="#010101" fill-opacity=".3">{val}</text><text x="100" y="14">{val}</text></g></svg>'''
 open('tests-badge.svg','w').write(svg)
 PY
-      - name: Commit badge
+      - name: Commit badge (only once)
+        if: ${{ matrix.python-version == '3.11' }}
         run: |
           git config user.name 'github-actions'
           git config user.email 'actions@users.noreply.github.com'
