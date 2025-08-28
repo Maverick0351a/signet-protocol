@@ -266,6 +266,11 @@ Workflow `.github/workflows/test_badge.yml` generates `badges/tests-badge.svg` w
 
 `![Tests](./badges/tests-badge.svg)`
 
+### Admin & Tooling
+
+* Reload reserved capacity without restart: `POST /v1/admin/reload-reserved` (requires API key)
+* Postman collection: `integrations/postman/Signet.postman_collection.json`
+
 ## 🏢 Enterprise Features
 
 ### Reserved Capacity Billing

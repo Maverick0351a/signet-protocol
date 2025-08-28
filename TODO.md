@@ -171,4 +171,11 @@ pytest tests/test_exchange.py -v        # ✅ Exchange endpoint (1/1 tests)
 4. **Deploy to production** following DEPLOYMENT_GUIDE.md
 5. **Monitor with Prometheus** metrics at `/metrics`
 
+## 🆕 Additional Enhancements Roadmap
+- [ ] Postman collection + receipt verification test script
+- [x] Admin endpoint to reload reserved capacity (`POST /v1/admin/reload-reserved`)
+- [ ] OpenTelemetry collector docker-compose example
+- [ ] Grafana dashboard JSON refinement (alerts & p95/p99 overlays)
+- [ ] Automatic metrics documentation generator script
+
 **The Signet Protocol is now enterprise-ready for immediate production deployment!** 🚀

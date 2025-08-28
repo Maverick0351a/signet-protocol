@@ -1,0 +1,61 @@
+{
+  "info": {
+    "name": "Signet Protocol",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Basic Postman collection for Signet exchange and admin operations"
+  },
+  "item": [
+    {
+      "name": "Health",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {"raw": "{{base_url}}/healthz", "host": ["{{base_url}}"], "path": ["healthz"]}
+      }
+    },
+    {
+      "name": "Exchange",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "X-SIGNET-API-Key", "value": "{{api_key}}"},
+          {"key": "X-SIGNET-Idempotency-Key", "value": "{{idem}}"},
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"payload_type\": \"openai.tooluse.invoice.v1\",\n  \"target_type\": \"invoice.iso20022.v1\",\n  \"payload\": {\n    \"tool_calls\": [{\n      \"type\": \"function\",\n      \"function\": {\n        \"name\": \"create_invoice\",\n        \"arguments\": \"{\\\"invoice_id\\\":\\\"INV-001\\\",\\\"amount\\\":1000,\\\"currency\\\":\\\"USD\\\"}\"\n      }\n    }]\n  },\n  \"forward_url\": null\n}"},
+        "url": {"raw": "{{base_url}}/v1/exchange", "host": ["{{base_url}}"], "path": ["v1","exchange"]}
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const res = pm.response.json();",
+              "pm.test('has receipt', () => { pm.expect(res.receipt).to.be.an('object'); });",
+              "pm.test('has trace id', () => { pm.expect(res.trace_id).to.be.a('string'); });",
+              "// Simple receipt signature placeholder (full cryptographic verify done in SDK)"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reload Reserved Config",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "X-SIGNET-API-Key", "value": "{{api_key}}"}
+        ],
+        "url": {"raw": "{{base_url}}/v1/admin/reload-reserved", "host": ["{{base_url}}"], "path": ["v1","admin","reload-reserved"]}
+      }
+    }
+  ],
+  "variable": [
+    {"key": "base_url", "value": "http://localhost:8088"},
+    {"key": "api_key", "value": "demo_key"},
+    {"key": "idem", "value": "demo-idem-123"}
+  ]
+}

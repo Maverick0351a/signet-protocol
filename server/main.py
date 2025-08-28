@@ -104,6 +104,28 @@ def jwks():
         keys.append(make_jwk_from_signing_key(KID, SK))
     return {"keys": keys}
 
+@app.post("/v1/admin/reload-reserved")
+def reload_reserved(x_signet_api_key: Optional[str] = Header(None, alias="X-SIGNET-API-Key")):
+    """Reload reserved capacity configuration from disk and refresh related metrics.
+
+    This is a lightweight operation: a new BillingBuffer instance is created, which
+    re-parses the reserved config file and updates Prometheus gauges. Returns a summary
+    of tenants and their reserved capacities. Any valid API key may call this; restrict
+    at ingress if tighter control is required.
+    """
+    api_key = x_signet_api_key
+    if not api_key:
+        raise HTTPException(status_code=401, detail="missing api key header")
+    tenant_cfg = SET.api_keys.get(api_key)
+    if not tenant_cfg:
+        raise HTTPException(status_code=401, detail="invalid api key")
+    from .pipeline.billing import BillingBuffer
+    BB = BillingBuffer(STORE, SET.stripe_api_key, SET.reserved_config_path)
+    summary = {}
+    for t, cfg in BB.reserved_configs.items():
+        summary[t] = {"vex_reserved": cfg.vex_reserved, "fu_reserved": cfg.fu_reserved}
+    return {"reloaded": True, "tenants": len(summary), "capacities": summary}
+
 @app.get("/v1/receipts/chain/{trace_id}")
 def get_chain(trace_id: str):
     return STORE.get_chain(trace_id)
