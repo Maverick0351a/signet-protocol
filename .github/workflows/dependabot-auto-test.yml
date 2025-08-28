@@ -25,9 +25,15 @@ jobs:
       - name: Install deps
         run: |
           pip install -r requirements-dev.txt --disable-pip-version-check
-      - name: Run minimal test subset
+      - name: Run curated fast test subset
         run: |
-          pytest tests/test_exchange.py -q
+          echo "Running curated subset (exchange, policy, billing, jcs, fallback metering)";
+          pytest \
+            tests/test_exchange.py \
+            tests/test_policy.py \
+            tests/test_billing.py \
+            tests/test_jcs.py \
+            tests/test_fallback_metering.py -q
   n8n-node-tests:
     if: contains(github.head_ref, 'dependabot')
     runs-on: ubuntu-latest
