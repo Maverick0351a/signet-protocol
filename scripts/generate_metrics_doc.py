@@ -9,6 +9,8 @@ Usage:
 from __future__ import annotations
 import inspect
 import importlib
+import os
+import sys
 from prometheus_client.metrics import MetricWrapperBase
 from typing import List
 
@@ -21,6 +23,11 @@ TYPE_MAP = {
 }
 
 def collect() -> List[dict]:
+    # Ensure repository root (parent of scripts/) is on sys.path so 'server' can be imported when
+    # script executed from arbitrary working directory.
+    repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
+    if repo_root not in sys.path:
+        sys.path.insert(0, repo_root)
     mod = importlib.import_module(MODULE)
     metrics = []
     for name, obj in inspect.getmembers(mod):
