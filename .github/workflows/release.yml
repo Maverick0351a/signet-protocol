@@ -1,0 +1,60 @@
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  publish-api-spec:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # needed for creating GitHub release
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Determine spec path
+        id: spec
+        run: |
+          VERSION="${GITHUB_REF_NAME}"
+          # Expect a frozen versioned spec under docs/api/openapi-<version>.yaml
+          CANDIDATE="docs/api/openapi-${VERSION}.yaml"
+          if [ -f "$CANDIDATE" ]; then
+            echo "spec_path=$CANDIDATE" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning title=Missing Versioned Spec::Expected $CANDIDATE; falling back to openapi.yaml"
+            echo "spec_path=openapi.yaml" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Signet Protocol API ${{ github.ref_name }}
+          body: |
+            Signet Protocol API release ${{ github.ref_name }}.
+
+            This release includes the frozen OpenAPI specification snapshot for generating clients.
+
+            Spec file: ${{ steps.spec.outputs.spec_path }}
+          files: ${{ steps.spec.outputs.spec_path }}
+          draft: false
+          prerelease: false
+
+      - name: Upload spec as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: openapi-spec-${{ github.ref_name }}
+          path: ${{ steps.spec.outputs.spec_path }}
+
+      - name: Display confirmation
+        run: echo "Published spec asset for version $GITHUB_REF_NAME from ${{ steps.spec.outputs.spec_path }}"
+
+      - name: Future note
+        run: |
+          echo "To publish a new version:"
+          echo "1. Copy openapi.yaml to docs/api/openapi-<new-version>.yaml"
+          echo "2. Update README if needed."
+          echo "3. Commit & push."
+          echo "4. git tag -a <new-version> -m '...' && git push origin <new-version>."

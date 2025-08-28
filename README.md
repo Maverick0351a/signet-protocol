@@ -241,6 +241,7 @@ For n8n, set the credential "Signet URL" to `https://signet-protocol.fly.dev`.
 - **[Deployment Guide](./DEPLOYMENT_GUIDE.md)** - Production deployment instructions
 - **[Advanced Features](./ADVANCED_FEATURES.md)** - Detailed feature documentation
 - **[API Documentation](http://localhost:8088/docs)** - Interactive API docs (when server running)
+- **[Stable API Spec v1.0.0](./docs/api/openapi-v1.0.0.yaml)** - Frozen OpenAPI snapshot
 - **[Error Glossary](./docs/ERROR_GLOSSARY.md)** - Standard errors & headers
 - **[Export Bundle Walkthrough](./docs/EXPORT_BUNDLE_WALKTHROUGH.md)** - Signed chain verification steps
 
@@ -252,6 +253,8 @@ For n8n, set the credential "Signet URL" to `https://signet-protocol.fly.dev`.
 - **[CLI Tools](./tools/signet_cli.py)** - Mapping and policy utilities
 
 ## 🔧 API Usage
+
+The canonical, versioned specification for clients is published under `docs/api/` (e.g. `openapi-v1.0.0.yaml`). The root `openapi.yaml` may advance ahead of released versions; rely on a frozen spec file for generated clients.
 
 ### Basic Exchange
 ```bash
