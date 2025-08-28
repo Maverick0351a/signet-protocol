@@ -7,6 +7,11 @@ import {
 	NodeApiError,
 } from 'n8n-workflow';
 
+interface SignetCredentials {
+	apiKey: string;
+	signetUrl: string;
+}
+
 /**
  * Make an API request to Signet Protocol
  */
@@ -16,42 +21,56 @@ export async function signetApiRequest(
 	resource: string,
 	body: any = {},
 	qs: any = {},
-	headers: any = {},
-	option: any = {},
+	headers: Record<string, any> = {},
+	option: Record<string, any> = {},
 ): Promise<any> {
-	const credentials = await this.getCredentials('signetProtocolApi');
+	const credentials = await this.getCredentials('signetProtocolApi') as unknown as SignetCredentials;
+	if (!credentials) {
+		throw new NodeApiError(this.getNode(), { message: 'Missing Signet Protocol credentials' });
+	}
 
-	const baseUrl = (credentials.signetUrl as string).replace(/\/$/, '');
+	// Normalize base URL (strip trailing slash) & resource (ensure leading slash)
+	const baseUrl = credentials.signetUrl.replace(/\/$/, '');
+	const normalizedResource = resource.startsWith('/') ? resource : `/${resource}`;
 
 	const options: IHttpRequestOptions = {
-		method,
+		method: method.toUpperCase(),
 		headers: {
 			'Content-Type': 'application/json',
-			'X-SIGNET-API-Key': credentials.apiKey as string,
+			'X-SIGNET-API-Key': credentials.apiKey,
 			'User-Agent': 'n8n-signet-protocol/1.0.0',
 			...headers,
 		},
 		body,
 		qs,
-		url: `${baseUrl}${resource}`,
+		url: `${baseUrl}${normalizedResource}`,
 		json: true,
+		timeout: 30_000,
 	};
 
-	if (Object.keys(body).length === 0) {
-		delete options.body;
+	// Merge any caller-supplied override options (e.g., timeout, proxy, gzip, etc.)
+	if (option && Object.keys(option).length) {
+		Object.assign(options, option);
+		// Allow header overrides inside option.headers
+		if (option.headers) {
+			options.headers = { ...options.headers, ...option.headers };
+		}
 	}
 
-	if (Object.keys(qs).length === 0) {
+	// Remove body for GET / HEAD automatically
+	if (['GET', 'HEAD'].includes(options.method || '') || !body || Object.keys(body).length === 0) {
+		delete options.body;
+	}
+	if (!qs || Object.keys(qs).length === 0) {
 		delete options.qs;
 	}
 
 	try {
-		if (option.returnFullResponse) {
-			return await this.helpers.httpRequestWithAuthentication.call(this, 'signetProtocolApi', options);
-		}
-		return await this.helpers.httpRequestWithAuthentication.call(this, 'signetProtocolApi', options);
+		const response = await this.helpers.httpRequestWithAuthentication.call(this, 'signetProtocolApi', options);
+		return option.returnFullResponse ? response : (response?.data ?? response);
 	} catch (error) {
-		throw new NodeApiError(this.getNode(), error);
+		// Wrap with NodeApiError for rich n8n UI error display
+		throw new NodeApiError(this.getNode(), error, { message: 'Signet API request failed' });
 	}
 }
 
