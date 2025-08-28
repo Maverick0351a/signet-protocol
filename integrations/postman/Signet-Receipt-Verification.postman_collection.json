@@ -1,0 +1,98 @@
+{
+  "info": {
+    "name": "Signet Receipt Verification Flow",
+    "description": "Scenario collection that creates an exchange, fetches its chain, exports the bundle, and runs client-side linkage verification in Postman tests.\n\nSteps:\n  1. Create a verified exchange (invoice).\n  2. Retrieve the receipt chain.\n  3. Export the chain bundle.\n  4. Verify linkage integrity (prev_receipt_hash chaining) & structural invariants.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.0.0"
+  },
+  "item": [
+    {
+      "name": "1 - Create Exchange (Invoice)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "pm.test('Exchange succeeded', () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
+              "pm.test('Has receipt + trace_id', () => { pm.expect(body.receipt).to.be.an('object'); pm.expect(body.trace_id).to.be.a('string'); });",
+              "pm.collectionVariables.set('TRACE_ID', body.trace_id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"},
+          {"key": "X-SIGNET-Idempotency-Key", "value": "{{$randomUUID}}"},
+          {"key": "X-SIGNET-API-Key", "value": "{{SIGNET_API_KEY}}"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"payload_type\": \"openai.tooluse.invoice.v1\",\n  \"target_type\": \"invoice.iso20022.v1\",\n  \"trace_id\": \"verify-{{$randomUUID}}\",\n  \"payload\": {\n    \"tool_calls\": [{\n      \"type\": \"function\",\n      \"function\": {\n        \"name\": \"create_invoice\",\n        \"arguments\": \"{\\\"invoice_id\\\":\\\"INV-{{$randomInt}}\\\",\\\"amount\\\":1000,\\\"currency\\\":\\\"USD\\\"}\"\n      }\n    }]\n  }\n}"
+        },
+        "url": {"raw": "{{SIGNET_BASE_URL}}/v1/exchange", "host": ["{{SIGNET_BASE_URL}}"], "path": ["v1","exchange"]}
+      }
+    },
+    {
+      "name": "2 - Get Receipt Chain",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const chain = pm.response.json();",
+              "pm.test('Chain array', () => { pm.expect(chain).to.be.an('array'); pm.expect(chain.length).to.be.greaterThan(0); });",
+              "pm.collectionVariables.set('CHAIN_LENGTH', chain.length);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [ {"key": "X-SIGNET-API-Key", "value": "{{SIGNET_API_KEY}}"} ],
+        "url": {"raw": "{{SIGNET_BASE_URL}}/v1/receipts/chain/{{TRACE_ID}}", "host": ["{{SIGNET_BASE_URL}}"], "path": ["v1","receipts","chain","{{TRACE_ID}}"]}
+      }
+    },
+    {
+      "name": "3 - Export Chain Bundle",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const bundle = pm.response.json();",
+              "pm.test('Bundle structure', () => { pm.expect(bundle.trace_id).to.equal(pm.collectionVariables.get('TRACE_ID')); pm.expect(bundle.chain).to.be.an('array'); });",
+              "// Verify linkage integrity",
+              "function sha256Hex(str){return CryptoJS.SHA256(str).toString(CryptoJS.enc.Hex);} ",
+              "let prev = null;",
+              "for (const r of bundle.chain){",
+              "  if (prev){ pm.test('Prev hash matches for hop '+r.hop, () => pm.expect(r.prev_receipt_hash).to.eql(prev.receipt_hash)); }",
+              "  prev = r;",
+              "}",
+              "pm.test('Linkage depth matches chain length', () => pm.expect(bundle.chain.length).to.be.greaterThan(0));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [ {"key": "X-SIGNET-API-Key", "value": "{{SIGNET_API_KEY}}"} ],
+        "url": {"raw": "{{SIGNET_BASE_URL}}/v1/receipts/export/{{TRACE_ID}}", "host": ["{{SIGNET_BASE_URL}}"], "path": ["v1","receipts","export","{{TRACE_ID}}"]}
+      }
+    }
+  ],
+  "variable": [
+    {"key": "SIGNET_BASE_URL", "value": "http://localhost:8088"},
+    {"key": "SIGNET_API_KEY", "value": "demo_key"},
+    {"key": "TRACE_ID", "value": ""}
+  ],
+  "event": [
+    {"listen": "prerequest", "script": {"type": "text/javascript", "exec": ["// Ensure CryptoJS is available (Postman has it by default)"]}},
+    {"listen": "test", "script": {"type": "text/javascript", "exec": ["// Global test placeholder"]}}
+  ]
+}

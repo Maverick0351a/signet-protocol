@@ -5,14 +5,15 @@ This directory contains integrations and tools for working with Signet Protocol 
 ## 📦 Available Integrations
 
 ### Postman Collection
-- **File**: `postman/Signet-Protocol-Collection.json`
+- **Core API Collection**: `postman/Signet-Protocol-Collection.json`
+- **Receipt Verification Flow**: `postman/Signet-Receipt-Verification.postman_collection.json`
 - **Environment**: `postman/Signet-Protocol-Environment.json`
 - **Features**:
   - Complete API testing suite
   - Automated test scripts
   - Multi-hop chain testing
   - Error scenario validation
-  - Receipt verification tests
+  - Receipt verification & linkage integrity tests (bundle export)
 
 ### GitHub Actions
 - **Action**: `.github/actions/signet-verify/`
@@ -138,6 +139,7 @@ The Postman collection includes automated tests that verify:
 - ✅ Chain linkage integrity
 - ✅ Timestamp format validation
 - ✅ Error response handling
+ - ✅ Receipt linkage chain prev_receipt_hash integrity (verification flow collection)
 
 ### CI/CD Integration
 The GitHub Action provides:
@@ -180,6 +182,14 @@ Extend the GitHub Action for your specific needs:
 ```
 
 ### Webhook Integration
+### OpenTelemetry Collector
+
+An OpenTelemetry Collector configuration is provided at `monitoring/otel-collector-config.yaml` and wired into `docker-compose.yml` via the `otel-collector` service. Spans are exported with the OTLP HTTP endpoint (`4318`) and currently logged locally. To forward to a backend (Tempo, Honeycomb, Lightstep, etc.) uncomment and configure an OTLP exporter in the collector config.
+
+Service container sets `OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318/v1/traces` enabling tracing automatically (see `server/utils/tracing.py`).
+
+To add Jaeger UI, uncomment the `jaeger` service block in `docker-compose.yml` and browse to `http://localhost:16686`.
+
 Set up webhooks to receive forwarded exchanges:
 
 ```javascript

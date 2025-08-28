@@ -1,0 +1,37 @@
+receivers:
+  otlp:
+    protocols:
+      http:
+        include_metadata: true
+      grpc: {}
+
+processors:
+  batch: {}
+  memory_limiter:
+    check_interval: 5s
+    limit_mib: 400
+    spike_limit_mib: 100
+  attributes:
+    actions:
+      - key: service.name
+        action: insert
+        value: signet-protocol
+
+exporters:
+  logging:
+    loglevel: info
+  # OTLP exporter placeholder for external backend (Tempo, Honeycomb, etc.)
+  # otlp/tempo:
+  #   endpoint: http://tempo:4317
+  #   tls:
+  #     insecure: true
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, attributes, batch]
+      exporters: [logging]
+  telemetry:
+    logs:
+      level: "info"

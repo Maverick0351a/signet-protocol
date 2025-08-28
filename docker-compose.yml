@@ -11,8 +11,11 @@ services:
       - SP_API_KEYS={"demo_key":{"tenant":"demo","fallback_enabled":true,"fu_monthly_limit":10000}}
       - SP_HEL_ALLOWLIST=postman-echo.com,httpbin.org
       - SP_RESERVED_CONFIG=/app/reserved_production.json
+  # Enable OpenTelemetry tracing export through the collector (HTTP/OTLP)
+  - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318/v1/traces
     depends_on:
       - postgres
+  - otel-collector
     volumes:
       - ./reserved_production.json:/app/reserved_production.json:ro
     restart: unless-stopped
@@ -65,6 +68,27 @@ services:
       - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
       - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
     restart: unless-stopped
+
+  # OpenTelemetry Collector to receive spans from the Signet service and forward to backends.
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.100.0
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./monitoring/otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
+    ports:
+      - "4318:4318"   # OTLP HTTP
+      - "4317:4317"   # OTLP gRPC (optional, not used by default)
+    restart: unless-stopped
+
+  # Optional Jaeger UI for viewing traces. Uncomment to enable.
+  # jaeger:
+  #   image: jaegertracing/all-in-one:1.57
+  #   environment:
+  #     - COLLECTOR_OTLP_ENABLED=true
+  #   ports:
+  #     - "16686:16686"   # Jaeger UI
+  #   restart: unless-stopped
+
 
 volumes:
   postgres_data:
