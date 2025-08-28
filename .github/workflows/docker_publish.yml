@@ -43,6 +43,20 @@ jobs:
             org.opencontainers.image.source=${{ github.repository }}
             org.opencontainers.image.version=${{ steps.vars.outputs.version }}
 
+      - name: Security scan (Trivy)
+        uses: aquasecurity/trivy-action@0.20.0
+        with:
+          image-ref: ghcr.io/${{ github.repository_owner }}/signet-protocol:${{ steps.vars.outputs.version }}
+          format: 'table'
+          exit-code: '1'
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+        continue-on-error: true
+      - name: Fail on vulnerabilities
+        run: |
+          if grep -qE "CRITICAL|HIGH" "$GITHUB_WORKSPACE"/trivy-results* 2>/dev/null; then
+            echo "High severity vulnerabilities detected (see scan output)."; exit 1; fi || true
+
       - name: Smoke test container
         run: |
           docker run -d --name signet_test -p 8088:8088 ghcr.io/${{ github.repository_owner }}/signet-protocol:${{ steps.vars.outputs.version }}

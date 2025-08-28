@@ -246,6 +246,7 @@ For n8n, set the credential "Signet URL" to `https://signet-protocol.fly.dev`.
 - **[Error Glossary](./docs/ERROR_GLOSSARY.md)** - Standard errors & headers
 - **[Export Bundle Walkthrough](./docs/EXPORT_BUNDLE_WALKTHROUGH.md)** - Signed chain verification steps
  - **Generated Clients (workflow artifacts)** - See `clients/README.md` for generation
+ - **Docker Image (GHCR)** - `ghcr.io/<owner>/signet-protocol:latest` (auto-built on tags)
 
 ### SDKs & Tools
 - **[Python Verification SDK](./sdk/python/signet_verify.py)** - Verify receipts in 5 lines
@@ -255,6 +256,23 @@ For n8n, set the credential "Signet URL" to `https://signet-protocol.fly.dev`.
 - **[CLI Tools](./tools/signet_cli.py)** - Mapping and policy utilities
 
 ## 🔧 API Usage
+
+### Docker Image
+Pull latest published image (built from tagged releases):
+```bash
+docker pull ghcr.io/maverick0351a/signet-protocol:latest
+docker run -p 8088:8088 ghcr.io/maverick0351a/signet-protocol:latest
+```
+
+### Generated Clients
+Use workflow-generated artifacts or publish your own TypeScript client via:
+```bash
+gh workflow run generate-clients -f spec_version=1.0.0
+```
+Or publish npm client (requires NPM_TOKEN secret):
+```bash
+gh workflow run publish-ts-client -f spec_version=1.0.0
+```
 
 The canonical, versioned specification for clients is published under `docs/api/` (e.g. `openapi-v1.0.0.yaml`). The root `openapi.yaml` may advance ahead of released versions; rely on a frozen spec file for generated clients.
 

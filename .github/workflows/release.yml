@@ -14,6 +14,39 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Generate release notes
+        id: notes
+        run: |
+          git fetch --tags --quiet
+          CURRENT_TAG="${GITHUB_REF_NAME}"
+          # Find previous core tag (exclude current) sorted by creation
+          PREV_TAG=$(git tag --sort=-creatordate | grep '^v' | grep -v "^${CURRENT_TAG}$" | head -1 || true)
+          echo "Previous tag: ${PREV_TAG}"
+          {
+            echo "# Signet Protocol ${CURRENT_TAG}";
+            echo "";
+            if [ -n "$PREV_TAG" ]; then
+              RANGE="${PREV_TAG}..${CURRENT_TAG}";
+            else
+              RANGE="${CURRENT_TAG}";
+            fi
+            FEAT=$(git log $RANGE --pretty=format:'%s' | grep -E '^feat' || true)
+            FIX=$(git log $RANGE --pretty=format:'%s' | grep -E '^fix' || true)
+            DOCS=$(git log $RANGE --pretty=format:'%s' | grep -E '^docs' || true)
+            CI=$(git log $RANGE --pretty=format:'%s' | grep -E '^ci' || true)
+            if [ -n "$FEAT" ]; then
+              echo "## Features"; echo "$FEAT" | sed 's/^/- /'; echo ""; fi
+            if [ -n "$FIX" ]; then
+              echo "## Fixes"; echo "$FIX" | sed 's/^/- /'; echo ""; fi
+            if [ -n "$DOCS" ]; then
+              echo "## Docs"; echo "$DOCS" | sed 's/^/- /'; echo ""; fi
+            if [ -n "$CI" ]; then
+              echo "## CI"; echo "$CI" | sed 's/^/- /'; echo ""; fi
+            echo "## Spec"; echo "Spec snapshot: docs/api/openapi-${CURRENT_TAG#v}.yaml"; echo "";
+            echo "_Generated automatically – edit after publish for refinements._";
+          } > release_notes.md
+          echo "body_path=release_notes.md" >> $GITHUB_OUTPUT
+
       - name: Determine spec path
         id: spec
         run: |
@@ -32,12 +65,7 @@ jobs:
         with:
           tag_name: ${{ github.ref_name }}
           name: Signet Protocol API ${{ github.ref_name }}
-          body: |
-            Signet Protocol API release ${{ github.ref_name }}.
-
-            This release includes the frozen OpenAPI specification snapshot for generating clients.
-
-            Spec file: ${{ steps.spec.outputs.spec_path }}
+          body_path: release_notes.md
           files: ${{ steps.spec.outputs.spec_path }}
           draft: false
           prerelease: false

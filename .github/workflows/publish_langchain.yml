@@ -9,7 +9,7 @@ jobs:
   build-and-publish:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+  contents: write
       id-token: write  # for trusted publishing (if enabled)
     steps:
       - name: Checkout
@@ -33,6 +33,28 @@ jobs:
           verbose: true
           packages-dir: adapters/langchain/dist
           # For API token authentication set PYPI_API_TOKEN secret; for trusted publishing omit.
+
+      - name: Generate release notes
+        if: startsWith(github.ref_name, 'signet-langchain-v')
+        run: |
+          TAG=${GITHUB_REF_NAME}
+          PREV=$(git tag --sort=-creatordate | grep 'signet-langchain-v' | grep -v "^${TAG}$" | head -1 || true)
+          {
+            echo "# signet-langchain ${TAG}"; echo "";
+            if [ -n "$PREV" ]; then RANGE="${PREV}..${TAG}"; else RANGE="${TAG}"; fi
+            git log $RANGE --pretty=format:'%s' | grep -E '^(feat|fix|docs|refactor|ci|chore)' | sed 's/^/- /'
+            echo ""; echo "_Auto-generated release notes._";
+          } > langchain_notes.md
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref_name, 'signet-langchain-v')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: signet-langchain ${{ github.ref_name }}
+          body_path: langchain_notes.md
+          draft: false
+          prerelease: false
 
       - name: Notes
         run: |

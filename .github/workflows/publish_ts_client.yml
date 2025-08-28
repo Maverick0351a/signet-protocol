@@ -1,0 +1,68 @@
+name: publish-ts-client
+
+on:
+  workflow_dispatch:
+    inputs:
+      spec_version:
+        description: "OpenAPI spec version (e.g. 1.0.0)"
+        required: true
+      client_version:
+        description: "Client package version (defaults to spec version)"
+        required: false
+  push:
+    tags:
+      - 'client-ts-v*.*.*'
+
+jobs:
+  build-publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set versions
+        id: vars
+        run: |
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            CTAG="${GITHUB_REF_NAME}" # client-ts-vX.Y.Z
+            CV=${CTAG#client-ts-v}
+            SV=${CV}
+          else
+            SV=${{ github.event.inputs.spec_version }}
+            CV=${{ github.event.inputs.client_version || github.event.inputs.spec_version }}
+          fi
+          echo "spec_version=$SV" >> $GITHUB_OUTPUT
+          echo "client_version=$CV" >> $GITHUB_OUTPUT
+          echo "Using spec=$SV client=$CV"
+
+      - name: Download OpenAPI Generator
+        run: |
+          curl -L https://repo1.maven.org/maven2/org/openapitools/openapi-generator-cli/7.7.0/openapi-generator-cli-7.7.0.jar -o openapi-generator-cli.jar
+
+      - name: Generate TypeScript client
+        run: |
+          SPEC=docs/api/openapi-${{ steps.vars.outputs.spec_version }}.yaml
+          [ -f "$SPEC" ] || { echo "Spec $SPEC missing"; exit 1; }
+          java -jar openapi-generator-cli.jar generate \
+            -i "$SPEC" \
+            -g typescript-fetch \
+            -o ts-client \
+            --additional-properties=npmName=signet-protocol-client,npmVersion=${{ steps.vars.outputs.client_version }},supportsES6=true
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          cd ts-client
+          npm publish --access public
+
+      - name: Summary
+        run: echo "Published signet-protocol-client@${{ steps.vars.outputs.client_version }} (spec ${{ steps.vars.outputs.spec_version }})"
