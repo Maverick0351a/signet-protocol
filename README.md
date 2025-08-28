@@ -202,7 +202,6 @@ docker run -p 8088:8088 \
 ```bash
 docker compose up -d
 ```
-```
 
 ### 4. Verify Health
 ```bash
@@ -274,6 +273,17 @@ docker run -p 8088:8088 ghcr.io/maverick0351a/signet-protocol:latest
 ```
 
 ### Generated Clients
+
+OpenAPI spec snapshots live under `docs/api/`.
+
+Client generation & publication:
+
+- Generate both clients (artifact only): `generate-clients` workflow or run `./scripts/generate_clients.sh <spec_version>`
+- Publish TypeScript client to npm: tag `client-ts-vX.Y.Z` or run `publish-ts-client` (sets `signet-protocol-client` npm version)
+- Publish Python client to PyPI: tag `client-py-vX.Y.Z` or run `publish-python-client` (sets `signet_protocol_client` version)
+
+Tag formats keep language prefix for clarity.
+
 Use workflow-generated artifacts or publish your own TypeScript client via:
 ```bash
 gh workflow run generate-clients -f spec_version=1.0.0

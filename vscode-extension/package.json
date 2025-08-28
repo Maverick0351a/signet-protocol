@@ -2,7 +2,7 @@
   "name": "signet-lens",
   "displayName": "Signet Lens",
   "description": "VS Code extension for Signet Protocol receipt visualization and verification",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "publisher": "odinsecureai",
   "icon": "icon.png",
   "engines": {

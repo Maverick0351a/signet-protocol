@@ -80,3 +80,5 @@ Logo and brand assets © ODIN Protocol Corporation. Distributed under the projec
 Run `./scripts/prepare_branding_assets.sh` to generate provisional assets.
 
 Once these items are complete, remove unchecked placeholders and update this checklist.
+
+Add Python client publish instructions in root and clients README (done).

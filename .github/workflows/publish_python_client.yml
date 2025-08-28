@@ -1,0 +1,89 @@
+name: publish-python-client
+
+on:
+  workflow_dispatch:
+    inputs:
+      spec_version:
+        description: "OpenAPI spec version (e.g. 1.0.0)"
+        required: true
+      client_version:
+        description: "Client package version (defaults to spec version)"
+        required: false
+  push:
+    tags:
+      - 'client-py-v*.*.*'
+
+jobs:
+  build-publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write  # for trusted publishing
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set versions
+        id: vars
+        run: |
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            PTAG="${GITHUB_REF_NAME}" # client-py-vX.Y.Z
+            CV=${PTAG#client-py-v}
+            SV=${CV}
+          else
+            SV=${{ github.event.inputs.spec_version }}
+            CV=${{ github.event.inputs.client_version || github.event.inputs.spec_version }}
+          fi
+          echo "spec_version=$SV" >> $GITHUB_OUTPUT
+          echo "client_version=$CV" >> $GITHUB_OUTPUT
+          echo "Using spec=$SV client=$CV"
+
+      - name: Download OpenAPI Generator
+        run: |
+          curl -L https://repo1.maven.org/maven2/org/openapitools/openapi-generator-cli/7.7.0/openapi-generator-cli-7.7.0.jar -o openapi-generator-cli.jar
+
+      - name: Generate Python client
+        run: |
+          SPEC=docs/api/openapi-${{ steps.vars.outputs.spec_version }}.yaml
+          [ -f "$SPEC" ] || { echo "Spec $SPEC missing"; exit 1; }
+          java -jar openapi-generator-cli.jar generate \
+            -i "$SPEC" \
+            -g python \
+            -o py-client \
+            --additional-properties=packageName=signet_protocol_client,packageVersion=${{ steps.vars.outputs.client_version }}
+
+      - name: Build wheel & sdist
+        working-directory: py-client
+        run: |
+          python -m pip install --upgrade build
+          python -m build
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: py-client/dist
+          verbose: true
+          # If using API token auth: set PYPI_API_TOKEN secret
+
+      - name: Generate release notes
+        run: |
+          TAG=${GITHUB_REF_NAME:-client-py-v${{ steps.vars.outputs.client_version }}}
+          PREV=$(git tag --sort=-creatordate | grep 'client-py-v' | grep -v "^${TAG}$" | head -1 || true)
+          {
+            echo "# Python Client ${TAG}"; echo "";
+            if [ -n "$PREV" ]; then RANGE="${PREV}..${TAG}"; else RANGE="${TAG}"; fi
+            git log $RANGE --pretty=format:'%s' | grep -E '^(feat|fix|docs|refactor|ci|chore)' | sed 's/^/- /' || echo "- Initial release"
+            echo ""; echo "_Auto-generated release notes._";
+          } > pyclient_notes.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || format('client-py-v{0}', steps.vars.outputs.client_version) }}
+          name: Python Client ${{ steps.vars.outputs.client_version }}
+          body_path: pyclient_notes.md
+          draft: false
+          prerelease: false
+
+      - name: Summary
+        run: echo "Published signet_protocol_client@${{ steps.vars.outputs.client_version }} (spec ${{ steps.vars.outputs.spec_version }})"

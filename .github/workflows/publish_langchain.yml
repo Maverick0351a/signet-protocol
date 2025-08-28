@@ -9,7 +9,7 @@ jobs:
   build-and-publish:
     runs-on: ubuntu-latest
     permissions:
-  contents: write
+      contents: write
       id-token: write  # for trusted publishing (if enabled)
     steps:
       - name: Checkout

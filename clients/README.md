@@ -16,6 +16,13 @@ Outputs:
 - `clients/python` – Python client (`signet_protocol_client`)
 - `clients/typescript` – TypeScript Fetch client (`signet-protocol-client`)
 
+## Publish Workflows
+
+- TypeScript: tag `client-ts-vX.Y.Z` or run `publish-ts-client` workflow.
+- Python: tag `client-py-vX.Y.Z` or run `publish-python-client` workflow.
+
+Workflow dispatch inputs allow overriding the spec version (must exist under `docs/api/`).
+
 ## Workflow
 
 Trigger manually:
