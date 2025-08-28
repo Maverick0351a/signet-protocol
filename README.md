@@ -15,6 +15,21 @@ Secure, verifiable, auditable AI-to-AI exchanges ("Trust Fabric"). Signet issues
 > ⭐ If this helps you build safer AI systems, please **Star** the repo — it signals demand and unlocks more OSS investment.
 
 ---
+## Demo (15s)
+> Terminal screencast: health check → exchange → export bundle.
+
+<p align="center">
+  <em>(Recording placeholder – generate with VHS)</em><br/>
+  <img src="./assets/demo/signet-demo.gif" alt="Signet demo" width="720" />
+</p>
+
+Generate locally (requires https://github.com/charmbracelet/vhs):
+```bash
+vhs assets/demo/signet-demo.tape
+```
+Result saves to `assets/demo/signet-demo.gif` – commit & push to display above.
+
+---
 ## Why Signet?
 | Problem Without Signet | With Signet |
 |------------------------|-------------|
