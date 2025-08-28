@@ -43,7 +43,7 @@
   - ✅ Minimal dependencies (requests, uuid)
   - ✅ `exchange()`, `get_receipts()`, `export_bundle()` methods
 
-### JavaScript/TypeScript Client: `@signet/client`
+### JavaScript/TypeScript Client: `signet-verify-js` (client utilities bundled)
 - **Location**: `sdk/javascript/src/signet-client.ts`
 - **One-liner API**:
   ```typescript
@@ -135,8 +135,8 @@
 
 ### Enhanced Monitoring
 - **Grafana Dashboards**: ✅ Production-ready configs in `monitoring/`
-- **Prometheus Metrics**: ✅ 43+ metrics already implemented
-- **OpenTelemetry**: ✅ Spans for normalize, policy, transform, forward, receipt
+- **Prometheus Metrics**: ✅ Core + billing + fallback + latency metrics (expanded set)
+- **OpenTelemetry**: ✅ Spans for sanitize, validate_input, attempt_repair, fallback_repair, transform, validate_output, policy, forward, cid, append_receipt, record_usage, billing_enqueue_vex, billing_enqueue_fu, cache
 
 ### Key Metrics Available
 ```prometheus

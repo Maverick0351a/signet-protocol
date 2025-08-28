@@ -3,6 +3,7 @@ from typing import Optional, Dict, Any, Tuple
 from datetime import datetime, timezone
 from prometheus_client import Counter, Gauge
 from ..settings import load_settings
+from .metrics import update_reserved_capacity
 from .storage import Storage
 
 billing_enqueued = Counter("signet_billing_enqueued_total", "Billing events enqueued", ["type"])
@@ -120,9 +121,10 @@ class BillingBuffer:
             for tenant, config in configs.items():
                 result[tenant] = ReservedCapacity(config)
                 
-                # Update Prometheus metrics
+                # Update legacy + new Prometheus metrics
                 reserved_capacity_gauge.labels(tenant=tenant, type="vex").set(config.get("vex_reserved", 0))
                 reserved_capacity_gauge.labels(tenant=tenant, type="fu").set(config.get("fu_reserved", 0))
+                update_reserved_capacity(tenant, config.get("vex_reserved", 0), config.get("fu_reserved", 0))
             
             return result
         except Exception as e:

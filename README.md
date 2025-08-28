@@ -84,7 +84,7 @@ result = verify_invoice("http://localhost:8088", "your-api-key", invoice_data)
 ### ✅ Scalable Infrastructure  
 - **PostgreSQL Support**: Production-grade database backend
 - **Connection Pooling**: Efficient database resource management
-- **Prometheus Metrics**: Comprehensive monitoring (43+ metrics)
+- **Prometheus Metrics**: Comprehensive monitoring (expanded core & billing metrics)
 - **Multi-tenant Architecture**: Secure tenant isolation
 
 ### ✅ Standards Compliance
@@ -210,23 +210,38 @@ curl -X POST http://localhost:8088/v1/exchange \
 
 ## 📈 Monitoring
 
-### Health Endpoints
+### Health & Observability Endpoints
 - `GET /healthz` - Server health check
-- `GET /metrics` - Prometheus metrics (43+ metrics)
+- `GET /metrics` - Prometheus metrics (core, billing, fallback, latency)
 - `GET /.well-known/jwks.json` - Public keys for verification
 
-### Key Metrics
+### Key Metrics (Selected)
 ```prometheus
-# Core business metrics
-signet_exchanges_total{tenant,api_key}
-signet_denied_total{reason,tenant}
+# Core exchange pipeline
+signet_exchanges_total
+signet_denied_total{reason}
 signet_forward_total{host}
+signet_idempotent_hits_total
+signet_exchange_phase_latency_seconds_bucket{phase}
+signet_exchange_total_latency_seconds_bucket
 
-# Billing metrics  
-signet_reserved_capacity{tenant,type="vex|fu"}
+# Repair / fallback
+signet_repair_attempts_total
+signet_repair_success_total
+signet_fallback_used_total
+signet_semantic_violation_total
+
+# Billing & usage
+signet_vex_units_total
+signet_fu_tokens_total
+signet_billing_enqueue_total{type}
+signet_reserved_capacity{tenant,type}
+signet_reserved_vex_capacity{tenant}
+signet_reserved_fu_capacity{tenant}
 signet_overage_charges_total{tenant,type,tier}
-signet_fallback_used_total{tenant}
 ```
+
+OpenTelemetry spans are emitted per phase (e.g. exchange.phase.sanitize, exchange.phase.transform, exchange.phase.forward) and can be exported via OTLP by setting OTEL_EXPORTER_OTLP_ENDPOINT.
 
 ## 🏢 Enterprise Features
 
