@@ -12,18 +12,113 @@ Secure, verifiable, auditable AI-to-AI exchanges ("Trust Fabric"). Signet issues
 
 ![Tests](./badges/tests-badge.svg) [![Status](https://img.shields.io/badge/status-production-green)](#quick-start) [![Spec](https://img.shields.io/badge/spec-v1.0.0-blue)](./docs/api/openapi-v1.0.0.yaml)
 
----
-## What You Get
+> ⭐ If this helps you build safer AI systems, please **Star** the repo — it signals demand and unlocks more OSS investment.
 
-| Capability | What It Solves |
-|------------|----------------|
-| Verified Exchanges (VEx) | Cryptographic proof an interaction occurred & wasn’t tampered |
-| Signed Receipts | Immutable, hash‑linked audit history |
-| Policy + HEL Egress Control | Stops unsafe outbound calls (SSRF, DNS rebinding) |
-| Semantic Invariant Guardrails | Prevents model corruption of key fields |
-| Export Bundles | Portable chain for compliance / forensics |
-| Prometheus + Tracing | Production visibility out of the box |
-| Billing & Quotas | Token + unit metering, reserved capacity, Stripe integration |
+---
+## Why Signet?
+| Problem Without Signet | With Signet |
+|------------------------|-------------|
+| Opaque AI tool calls / prompt chains | Cryptographically signed, replayable trail |
+| Hard to prove no tampering | Hash‑linked receipts (detect single‑byte mutation) |
+| Ad‑hoc logging (no integrity) | Canonical JSON + deterministic hashing (RFC 8785) |
+| Unbounded egress risk (SSRF, data exfil) | HEL policy + allowlist + IP pinning |
+| "Trust me" billing | Unit & token metering + exportable billing evidence |
+| Post‑incident forensic gaps | Export bundle: portable ground truth chain |
+
+---
+## Top Use Cases
+| Use Case | Benefit |
+|----------|---------|
+| Multi-agent orchestration | Prove which agent produced which transformed fields |
+| Regulated data workflows (fintech, healthcare) | Immutable audit for compliance & dispute resolution |
+| Usage-based AI billing platforms | Transparent, verifiable unit attribution |
+| Supply chain / output provenance | Attest each normalization / enrichment hop |
+| Security boundary enforcement | Prevent unauthorized outbound calls & data leakage |
+| Failure & drift analysis | Compare historical, signed normalized outputs over time |
+
+---
+## 30‑Second Tour
+```mermaid
+flowchart LR
+A[Raw AI Tool Output] --> N[Normalize & Canonicalize]\n(schema + invariants)
+N --> R[Signed Receipt]\n(Ed25519)
+R --> C[Chain Storage]\n(Hash link)
+R -->|optional forward| F[Webhook / Downstream]
+C --> E[Export Bundle]\n(Forensics / Billing)
+```
+
+```python
+# 1. Submit exchange
+res = requests.post('/v1/exchange', json=payload, headers=auth)
+receipt = res.json()['receipt']
+
+# 2. Export later
+bundle = requests.post('/v1/export/bundle', json={'trace_id': res.json()['trace_id']}, headers=auth).json()
+
+# 3. Offline verify
+from signet_verify import verify_receipt
+all_ok = all(verify_receipt(r)[0] for r in bundle['receipts'])
+```
+
+```js
+// Browser / Node receipt verification
+import { verifyReceipt } from 'signet-verify-js';
+const { valid } = verifyReceipt(receipt); // true if signature & hash chain hold
+```
+
+---
+## Extended Examples
+### A. End-to-End (Python)
+```python
+import requests, json
+API = 'http://localhost:8088'
+H = {
+  'X-SIGNET-API-Key': 'demo_key',
+  'X-SIGNET-Idempotency-Key': 'demo-001',
+  'Content-Type': 'application/json'
+}
+payload = {
+  'payload_type': 'openai.tooluse.invoice.v1',
+  'target_type': 'invoice.iso20022.v1',
+  'payload': { 'tool_calls': [] }
+}
+# Exchange
+x = requests.post(f'{API}/v1/exchange', headers=H, json=payload).json()
+print('Normalized amount:', x['normalized'].get('amount_minor'))
+# Export chain
+bundle = requests.post(f'{API}/v1/export/bundle', headers=H, json={'trace_id': x['trace_id']}).json()
+print('Receipts in chain:', len(bundle['receipts']))
+```
+
+### B. Tamper Detection (Illustrative)
+If an attacker flips a digit inside a recorded normalized field:
+```python
+from copy import deepcopy
+from signet_verify import verify_receipt
+r = bundle['receipts'][0]
+print(verify_receipt(r))  # (True, None)
+mut = deepcopy(r)
+mut['normalized']['amount_minor'] = 999999  # tamper
+print(verify_receipt(mut))  # (False, 'hash mismatch')
+```
+A single‑field mutation alters the canonical serialization hash; verification fails immediately.
+
+### C. LangChain Integration
+```python
+from signet_callback import enable_signet_verification
+signet = enable_signet_verification(API, 'demo_key')
+result = chain.run("make invoice", callbacks=[signet])
+```
+
+---
+## Trust Fabric Concepts (Plain Language)
+| Term | Plain Meaning |
+|------|---------------|
+| VEx (Verified Exchange) | A single normalized + signed step in a multi-hop chain |
+| Receipt | JSON envelope: content CID, previous hash, signature, timestamp |
+| Bundle | Exported ordered list of receipts (plus root metadata) |
+| Semantic Invariant | Rule that critical fields must not structurally change |
+| HEL Policy | Outbound network policy (host / method / size / timeout) |
 
 ---
 ## Quick Start (3 Paths)
@@ -185,6 +280,20 @@ Verify offline using JS or Python SDK: load each receipt, canonicalize, recomput
 | Advanced Features | `ADVANCED_FEATURES.md` |
 | Branding | `docs/BRANDING.md` |
 | Developer Internals | `DEVELOPERS.md` |
+
+---
+## Production Readiness Checklist
+| Item | Status |
+|------|--------|
+| Canonical JSON receipt spec frozen (v1.0.0) | ✅ |
+| End-to-end tests (52 pass) | ✅ |
+| Metrics & tracing instrumentation | ✅ |
+| Export bundle & offline verify | ✅ |
+| Billing & reserved capacity | ✅ |
+| LangChain & SDK verification libs | ✅ |
+| Security controls (SSRF / IP pinning / invariants) | ✅ |
+| Fallback repair + semantic guardrails | ✅ |
+| Frozen OpenAPI for client generation | ✅ |
 
 ---
 ## Contributing
