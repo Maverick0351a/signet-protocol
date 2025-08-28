@@ -8,6 +8,50 @@
 
 The Signet Protocol establishes the **Trust Fabric** - providing cryptographic proof of AI interactions through Verified Exchanges (VEx), Signed Receipts, and HEL egress control.
 
+## 🧩 Ecosystem Packages & Tooling
+
+| Artifact | Status | Install / Link |
+|----------|--------|----------------|
+| VS Code Extension (Signet Lens) | ![VSCE Version](https://img.shields.io/visual-studio-marketplace/v/odinsecureai.signet-lens) ![Installs](https://img.shields.io/visual-studio-marketplace/i/odinsecureai.signet-lens) | Marketplace: https://marketplace.visualstudio.com/items?itemName=odinsecureai.signet-lens |
+| JavaScript Verification SDK (`signet-verify-js`) | ![npm version](https://img.shields.io/npm/v/signet-verify-js) ![npm downloads](https://img.shields.io/npm/dm/signet-verify-js) | `npm install signet-verify-js` |
+| Python Verification SDK (`signet-verify`) | ![PyPI](https://img.shields.io/pypi/v/signet-verify) ![PyPI - Downloads](https://img.shields.io/pypi/dm/signet-verify) | `pip install signet-verify` |
+
+### VS Code Extension (Signet Lens)
+Add in‑editor receipt chain verification, CID diffing, bundle export, and interactive chain visualization.
+
+Install (CLI):
+```bash
+code --install-extension odinsecureai.signet-lens
+```
+Or search "Signet Lens" in the Extensions view.
+
+Key Commands:
+* Verify Receipt Chain
+* Visualize Receipt Chain
+* Copy Bundle CID
+* Diff CID
+
+### JavaScript SDK
+Quick verify:
+```bash
+npm install signet-verify-js
+```
+```javascript
+import { verifyReceipt } from 'signet-verify-js';
+const { valid, reason } = verifyReceipt(receipt);
+```
+
+### Python SDK
+```bash
+pip install signet-verify
+```
+```python
+from signet_verify import verify_receipt
+valid, reason = verify_receipt(receipt)
+```
+
+Both SDKs implement canonicalization + hash recomputation for offline integrity checks and bundle CID comparison.
+
 ## 🎯 Quick Start (One Line Integration)
 
 ### Python/LangChain
