@@ -4,6 +4,7 @@ import {
 	ILoadOptionsFunctions,
 	IWebhookFunctions,
 	IHttpRequestOptions,
+	IHttpRequestMethods,
 	NodeApiError,
 } from 'n8n-workflow';
 
@@ -33,8 +34,9 @@ export async function signetApiRequest(
 	const baseUrl = credentials.signetUrl.replace(/\/$/, '');
 	const normalizedResource = resource.startsWith('/') ? resource : `/${resource}`;
 
+	const httpMethod = method.toUpperCase() as IHttpRequestMethods;
 	const options: IHttpRequestOptions = {
-		method: method.toUpperCase(),
+		method: httpMethod,
 		headers: {
 			'Content-Type': 'application/json',
 			'X-SIGNET-API-Key': credentials.apiKey,
@@ -69,8 +71,8 @@ export async function signetApiRequest(
 		const response = await this.helpers.httpRequestWithAuthentication.call(this, 'signetProtocolApi', options);
 		return option.returnFullResponse ? response : (response?.data ?? response);
 	} catch (error) {
-		// Wrap with NodeApiError for rich n8n UI error display
-		throw new NodeApiError(this.getNode(), error, { message: 'Signet API request failed' });
+		// Wrap with NodeApiError for rich n8n UI error display. Cast to any for JsonObject compliance.
+		throw new NodeApiError(this.getNode(), error as any, { message: 'Signet API request failed' });
 	}
 }
 

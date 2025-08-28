@@ -1,0 +1,62 @@
+{
+  "name": "n8n-nodes-signet-protocol",
+  "version": "0.1.0",
+  "description": "n8n community node to interact with Signet Protocol (verified AI-to-AI exchanges, billing, admin).",
+  "author": "Signet Protocol Contributors",
+  "license": "MIT",
+  "homepage": "https://github.com/maverick0351a/signet-protocol",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/maverick0351a/signet-protocol.git"
+  },
+  "bugs": {
+    "url": "https://github.com/maverick0351a/signet-protocol/issues"
+  },
+  "main": "dist/nodes/index.js",
+  "types": "dist/nodes/index.d.ts",
+  "files": [
+    "dist/**",
+    "README.md",
+    "signet.svg"
+  ],
+  "keywords": [
+    "n8n",
+    "workflow",
+    "signet",
+    "protocol",
+    "ai",
+    "billing",
+    "exchange",
+    "verification"
+  ],
+  "scripts": {
+    "build": "tsc --project tsconfig.json",
+    "clean": "rimraf dist",
+    "rebuild": "npm run clean && npm run build",
+    "prepublishOnly": "npm run build"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "n8n-workflow": "^1.46.0",
+    "typescript": "^5.4.0",
+    "rimraf": "^5.0.5"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "n8n": {
+    "credentials": [
+      {
+        "name": "SignetProtocolApi.credentials.ts"
+      }
+    ],
+    "nodes": [
+      {
+        "name": "SignetProtocol/SignetProtocol.node.ts"
+      }
+    ]
+  }
+}

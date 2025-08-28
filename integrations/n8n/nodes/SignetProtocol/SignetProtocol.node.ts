@@ -4,6 +4,7 @@ import {
 	INodeType,
 	INodeTypeDescription,
 	NodeOperationError,
+	NodeConnectionType,
 } from 'n8n-workflow';
 
 import { signetApiRequest } from './GenericFunctions';
@@ -20,8 +21,8 @@ export class SignetProtocol implements INodeType {
 		defaults: {
 			name: 'Signet Protocol',
 		},
-		inputs: ['main'],
-		outputs: ['main'],
+		inputs: [NodeConnectionType.Main],
+		outputs: [NodeConnectionType.Main],
 		credentials: [
 			{
 				name: 'signetProtocolApi',
