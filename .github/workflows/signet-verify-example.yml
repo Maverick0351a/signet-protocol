@@ -14,13 +14,16 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
       
       - name: Verify Test Vectors
         uses: ./.github/actions/signet-verify
         id: verify
         with:
           test-vectors-path: 'test-vectors'
-          jwks-url: 'https://signet-protocol.example.com/.well-known/jwks.json'
           fail-on-error: 'true'
           python-version: '3.11'
       
@@ -60,9 +63,9 @@ jobs:
       
       - name: Start Signet Server (for testing)
         run: |
-          # This would start your Signet Protocol server
-          # docker run -d -p 8088:8088 signet-protocol:latest
-          echo "Server would be started here"
+          pip install -r requirements.txt
+          nohup python -m uvicorn server.main:app --host 0.0.0.0 --port 8088 &
+          sleep 5
       
       - name: Verify with Server
         uses: ./.github/actions/signet-verify
