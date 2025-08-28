@@ -128,7 +128,16 @@
         {
           "id": "signet-lens.receiptChains",
           "name": "Receipt Chains",
-          "when": "signet-lens.hasReceiptChains"
+          "when": "signet-lens.hasReceiptChains",
+          "icon": "media/chain.svg"
+        }
+      ],
+      "signet-lens": [
+        {
+          "type": "webview",
+          "id": "signet-lens.chainVisualizer",
+          "name": "Receipt Chain Visualizer",
+          "icon": "media/chain.svg"
         }
       ]
     },
@@ -137,16 +146,10 @@
         {
           "id": "signet-lens",
           "title": "Signet Lens",
-          "icon": "$(shield-check)"
+          "icon": "icon.png"
         }
       ]
-    },
-    "webviews": [
-      {
-        "viewType": "signet-lens.chainVisualizer",
-        "title": "Receipt Chain Visualizer"
-      }
-    ]
+    }
   },
   "scripts": {
     "compile": "tsc -p ./",
