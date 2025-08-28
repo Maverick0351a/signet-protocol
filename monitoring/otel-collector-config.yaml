@@ -20,6 +20,10 @@ processors:
 exporters:
   logging:
     loglevel: info
+  jaeger:
+    endpoint: jaeger:14250
+    tls:
+      insecure: true
   # OTLP exporter placeholder for external backend (Tempo, Honeycomb, etc.)
   # otlp/tempo:
   #   endpoint: http://tempo:4317
@@ -31,7 +35,7 @@ service:
     traces:
       receivers: [otlp]
       processors: [memory_limiter, attributes, batch]
-      exporters: [logging]
+  exporters: [logging, jaeger]
   telemetry:
     logs:
       level: "info"

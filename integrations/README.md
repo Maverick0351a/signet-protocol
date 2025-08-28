@@ -188,7 +188,11 @@ An OpenTelemetry Collector configuration is provided at `monitoring/otel-collect
 
 Service container sets `OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318/v1/traces` enabling tracing automatically (see `server/utils/tracing.py`).
 
-To add Jaeger UI, uncomment the `jaeger` service block in `docker-compose.yml` and browse to `http://localhost:16686`.
+Jaeger UI is available at `http://localhost:16686` (enabled in `docker-compose.yml`). Traces from the service flow through the OpenTelemetry Collector to Jaeger.
+
+### Alerting (Prometheus + Alertmanager)
+
+Prometheus alerts (latency, denied rate, fallback spikes) are routed to Alertmanager (`alertmanager` service). A default webhook receiver is configured to POST alerts back to the Signet service at `/alert-webhook` (stub endpoint—extend to integrate with Slack, PagerDuty, email, etc.). Adjust routing & receivers in `monitoring/alertmanager.yml`.
 
 ### Prometheus Recording & Alerts
 

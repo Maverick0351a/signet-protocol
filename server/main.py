@@ -97,6 +97,21 @@ def healthz():
 def metrics():
     return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
+@app.post("/alert-webhook")
+async def alert_webhook(request: Request):
+    """Receive Alertmanager webhook notifications.
+
+    Currently logs the payload; extend to integrate with incident management (Slack, PagerDuty, email, etc.).
+    Returns 204 No Content on success.
+    """
+    try:
+        payload = await request.json()
+        # Minimal inline logging; replace with structured logging as needed
+        print(f"[alert-webhook] received alert batch: {len(payload.get('alerts', []))} alerts")
+    except Exception as e:
+        print(f"[alert-webhook] error decoding payload: {e}")
+    return Response(status_code=204)
+
 @app.get("/.well-known/jwks.json")
 def jwks():
     keys = []

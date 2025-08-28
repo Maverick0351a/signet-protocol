@@ -11,11 +11,10 @@ services:
       - SP_API_KEYS={"demo_key":{"tenant":"demo","fallback_enabled":true,"fu_monthly_limit":10000}}
       - SP_HEL_ALLOWLIST=postman-echo.com,httpbin.org
       - SP_RESERVED_CONFIG=/app/reserved_production.json
-  # Enable OpenTelemetry tracing export through the collector (HTTP/OTLP)
-  - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318/v1/traces
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318/v1/traces
     depends_on:
       - postgres
-  - otel-collector
+      - otel-collector
     volumes:
       - ./reserved_production.json:/app/reserved_production.json:ro
     restart: unless-stopped
@@ -48,6 +47,7 @@ services:
       - "9090:9090"
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/rules:/etc/prometheus/rules:ro
       - prometheus_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
@@ -56,6 +56,10 @@ services:
       - '--web.console.templates=/etc/prometheus/consoles'
       - '--web.enable-lifecycle'
     restart: unless-stopped
+    depends_on:
+      - alertmanager
+    environment:
+      - ALERTMANAGER_URL=http://alertmanager:9093
 
   grafana:
     image: grafana/grafana:latest
@@ -80,14 +84,25 @@ services:
       - "4317:4317"   # OTLP gRPC (optional, not used by default)
     restart: unless-stopped
 
-  # Optional Jaeger UI for viewing traces. Uncomment to enable.
-  # jaeger:
-  #   image: jaegertracing/all-in-one:1.57
-  #   environment:
-  #     - COLLECTOR_OTLP_ENABLED=true
-  #   ports:
-  #     - "16686:16686"   # Jaeger UI
-  #   restart: unless-stopped
+  jaeger:
+    image: jaegertracing/all-in-one:1.57
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    ports:
+      - "16686:16686"   # Jaeger UI
+    restart: unless-stopped
+    depends_on:
+      - otel-collector
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    volumes:
+      - ./monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+    ports:
+      - "9093:9093"
+    restart: unless-stopped
 
 
 volumes:
