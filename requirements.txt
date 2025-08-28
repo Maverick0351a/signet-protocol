@@ -7,7 +7,7 @@ jmespath==1.0.1
 fastjsonschema==2.21.2  # Bumped minor
 prometheus-client==0.22.1  # Bumped to latest stable (metric exposition)
 pynacl==1.5.0
-dnspython==2.6.1
+dnspython==2.7.0
 idna==3.7  # Safe to leave; 3.10 available but not required
 openai==0.28.0  # Legacy SDK pinned; TODO: migrate to >=1.x new API surface
 opentelemetry-api==1.25.0  # Pinned; coordinated OTEL stack upgrade deferred
