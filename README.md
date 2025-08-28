@@ -428,7 +428,7 @@ uvicorn server.main:app --reload --port 8088
 ```
 
 ### Linting & Formatting
-Ruff is configured in `pyproject.toml` and enforced in CI (`lint` workflow).
+Ruff is configured in `pyproject.toml` and enforced in CI (`lint` workflow). Pull requests must be clean; direct pushes to `main` will auto-apply safe fixes & formatting and commit them.
 Run locally:
 ```bash
 ruff check .

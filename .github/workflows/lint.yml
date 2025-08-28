@@ -8,8 +8,12 @@ on:
 jobs:
   ruff:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write  # allow commits on push events
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -21,9 +25,30 @@ jobs:
       - name: Install deps (ruff only)
         run: |
           pip install --disable-pip-version-check --no-cache-dir -r requirements-dev.txt
-      - name: Ruff Lint
+      - name: PR Lint Check (no changes)
+        if: github.event_name == 'pull_request'
         run: |
           ruff check . --output-format=github
-      - name: Ruff Format Check
+          ruff format --check .
+      - name: Auto-fix & Format (push)
+        if: github.event_name == 'push'
         run: |
+          ruff check . --fix
+          ruff format .
+      - name: Commit formatting changes
+        if: github.event_name == 'push'
+        run: |
+          if git diff --quiet; then
+            echo "No formatting changes to commit"
+          else
+            git config user.name 'github-actions'
+            git config user.email 'actions@users.noreply.github.com'
+            git add .
+            git commit -m 'ci: apply ruff auto-fixes'
+            git push
+          fi
+      - name: Post-fix verification
+        if: github.event_name == 'push'
+        run: |
+          ruff check . --output-format=github
           ruff format --check .
