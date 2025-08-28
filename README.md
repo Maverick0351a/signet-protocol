@@ -255,6 +255,7 @@ For n8n, set the credential "Signet URL" to `https://signet-protocol.fly.dev`.
 - **[Export Bundle Walkthrough](./docs/EXPORT_BUNDLE_WALKTHROUGH.md)** - Signed chain verification steps
  - **Generated Clients (workflow artifacts)** - See `clients/README.md` for generation
  - **Docker Image (GHCR)** - `ghcr.io/<owner>/signet-protocol:latest` (auto-built on tags)
+ - **[Branding](./docs/BRANDING.md)** - Logo & asset guidelines
 
 ### SDKs & Tools
 - **[Python Verification SDK](./sdk/python/signet_verify.py)** - Verify receipts in 5 lines
