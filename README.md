@@ -10,11 +10,11 @@ The Signet Protocol establishes the **Trust Fabric** - providing cryptographic p
 
 ## 🧩 Ecosystem Packages & Tooling
 
-| Artifact | Status | Install / Link |
-|----------|--------|----------------|
-| VS Code Extension (Signet Lens) | ![VSCE Version](https://img.shields.io/visual-studio-marketplace/v/odinsecureai.signet-lens) ![Installs](https://img.shields.io/visual-studio-marketplace/i/odinsecureai.signet-lens) | Marketplace: https://marketplace.visualstudio.com/items?itemName=odinsecureai.signet-lens |
-| JavaScript Verification SDK (`signet-verify-js`) | ![npm version](https://img.shields.io/npm/v/signet-verify-js) ![npm downloads](https://img.shields.io/npm/dm/signet-verify-js) | `npm install signet-verify-js` |
-| Python Verification SDK (`signet-verify`) | ![PyPI](https://img.shields.io/pypi/v/signet-verify) ![PyPI - Downloads](https://img.shields.io/pypi/dm/signet-verify) | `pip install signet-verify` |
+| Artifact | Status | Reference |
+|----------|--------|-----------|
+| VS Code Extension (Signet Lens) | Published | Marketplace: https://marketplace.visualstudio.com/items?itemName=odinsecureai.signet-lens |
+| JavaScript Verification SDK (`signet-verify-js`) | Published | Package: signet-verify-js (npm) |
+| Python Verification SDK (`signet-verify`) | Published | Package: signet-verify (PyPI) |
 
 ### VS Code Extension (Signet Lens)
 Add in‑editor receipt chain verification, CID diffing, bundle export, and interactive chain visualization.
