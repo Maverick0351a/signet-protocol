@@ -1,3 +1,4 @@
 -r requirements.txt
 pytest==8.3.2
 pytest-json-report==1.5.0
+ruff==0.5.6  # Lint & format (pin; update periodically)

@@ -427,6 +427,15 @@ pytest tests/ -v
 uvicorn server.main:app --reload --port 8088
 ```
 
+### Linting & Formatting
+Ruff is configured in `pyproject.toml` and enforced in CI (`lint` workflow).
+Run locally:
+```bash
+ruff check .
+ruff format .  # (optional) apply formatting
+```
+Adjust rule selection or ignores in `[tool.ruff]` as standards evolve.
+
 ### Standards Compliance
 - Follow SR-1 receipt specification
 - Implement SVX-1 exchange semantics  
