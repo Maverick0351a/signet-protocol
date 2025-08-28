@@ -383,6 +383,14 @@ Examples:
         schema_validate_parser.add_argument('--input-schema', required=True, help='Input schema file')
         schema_validate_parser.add_argument('--output-schema', help='Output schema file')
         schema_validate_parser.add_argument('--data', required=True, help='Data file to validate')
+    # Receipts command
+    receipts_parser = subparsers.add_parser('receipts', help='Receipt & chain utilities')
+    receipts_subparsers = receipts_parser.add_subparsers(dest='receipts_action')
+    rc_verify_chain = receipts_subparsers.add_parser('verify-chain', help='Verify a receipt chain JSON file')
+    rc_verify_chain.add_argument('--file', required=True, help='Path to JSON array (chain) or export bundle')
+    rc_verify_export = receipts_subparsers.add_parser('verify-export', help='Verify an export bundle (with signature)')
+    rc_verify_export.add_argument('--file', required=True, help='Export bundle JSON file')
+    rc_verify_export.add_argument('--jwks', required=False, help='JWKS URL (optional)')
     
     def run(self, args=None):
         """Run the CLI with provided arguments."""
@@ -399,6 +407,8 @@ Examples:
                 return self._handle_policy_command(args)
             elif args.command == 'schema':
                 return self._handle_schema_command(args)
+            elif args.command == 'receipts':
+                return self._handle_receipts_command(args)
             else:
                 print(f"Unknown command: {args.command}")
                 return 1
@@ -429,6 +439,54 @@ Examples:
         else:
             print("Available schema actions: validate")
             return 1
+
+    def _handle_receipts_command(self, args) -> int:
+        if args.receipts_action == 'verify-chain':
+            return self._verify_chain_file(args.file)
+        elif args.receipts_action == 'verify-export':
+            return self._verify_export_bundle(args.file, args.jwks)
+        else:
+            print("Available receipts actions: verify-chain, verify-export")
+            return 1
+
+    def _verify_chain_file(self, path: str) -> int:
+        try:
+            data = json.load(open(path, 'r', encoding='utf-8'))
+            if isinstance(data, dict) and 'chain' in data:
+                chain = data.get('chain', [])
+            elif isinstance(data, list):
+                chain = data
+            else:
+                print("❌ Unrecognized file format (need array or export bundle)")
+                return 1
+            verifier = self._get_verifier()
+            ok, reason = verifier.verify_chain(chain)
+            print(f"Chain valid: {ok} ({reason}) length={len(chain)}")
+            return 0 if ok else 1
+        except Exception as e:
+            print(f"❌ Chain verification failed: {e}")
+            return 1
+
+    def _verify_export_bundle(self, path: str, jwks_url: Optional[str]) -> int:
+        try:
+            bundle = json.load(open(path, 'r', encoding='utf-8'))
+            verifier = self._get_verifier()
+            ok, reason = verifier.verify_export_bundle(bundle, jwks_url)
+            print(f"Export bundle valid: {ok} ({reason}) receipts={len(bundle.get('chain', []))}")
+            return 0 if ok else 1
+        except Exception as e:
+            print(f"❌ Export verification failed: {e}")
+            return 1
+
+    def _get_verifier(self):
+        try:
+            from signet_verify import SignetVerifier  # type: ignore
+        except ImportError:
+            import sys, pathlib
+            sdk_path = pathlib.Path(__file__).parent.parent / 'sdk' / 'python'
+            sys.path.append(str(sdk_path))
+            from signet_verify import SignetVerifier  # type: ignore
+        return SignetVerifier()
     
     def _test_mapping(self, args) -> int:
         """Test mapping transformation."""

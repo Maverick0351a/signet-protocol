@@ -241,6 +241,8 @@ For n8n, set the credential "Signet URL" to `https://signet-protocol.fly.dev`.
 - **[Deployment Guide](./DEPLOYMENT_GUIDE.md)** - Production deployment instructions
 - **[Advanced Features](./ADVANCED_FEATURES.md)** - Detailed feature documentation
 - **[API Documentation](http://localhost:8088/docs)** - Interactive API docs (when server running)
+- **[Error Glossary](./docs/ERROR_GLOSSARY.md)** - Standard errors & headers
+- **[Export Bundle Walkthrough](./docs/EXPORT_BUNDLE_WALKTHROUGH.md)** - Signed chain verification steps
 
 ### SDKs & Tools
 - **[Python Verification SDK](./sdk/python/signet_verify.py)** - Verify receipts in 5 lines
