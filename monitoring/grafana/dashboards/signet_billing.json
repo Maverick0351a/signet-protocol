@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 39,
+  "title": "Signet Billing & Usage",
+  "timezone": "browser",
+  "panels": [
+    {
+      "type": "stat",
+      "title": "VEx Units (5m)",
+      "datasource": "Prometheus",
+      "targets": [{"expr": "increase(signet_vex_units_total[5m])"}],
+      "gridPos": {"h": 4, "w": 4, "x": 0, "y": 0}
+    },
+    {
+      "type": "stat",
+      "title": "FU Tokens (5m)",
+      "datasource": "Prometheus",
+      "targets": [{"expr": "increase(signet_fu_tokens_total[5m])"}],
+      "gridPos": {"h": 4, "w": 4, "x": 4, "y": 0}
+    },
+    {
+      "type": "graph",
+      "title": "Billing Enqueue (rate)",
+      "datasource": "Prometheus",
+      "targets": [{"expr": "rate(signet_billing_enqueue_total[5m])"}],
+      "gridPos": {"h": 8, "w": 12, "x": 8, "y": 0},
+      "lines": true
+    },
+    {
+      "type": "graph",
+      "title": "Denied Reasons (rate)",
+      "datasource": "Prometheus",
+      "targets": [{"expr": "sum by (reason)(rate(signet_denied_total[5m]))"}],
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+      "lines": true
+    },
+    {
+      "type": "graph",
+      "title": "Forward Host Distribution",
+      "datasource": "Prometheus",
+      "targets": [{"expr": "sum by (host)(rate(signet_forward_total[5m]))"}],
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+      "lines": true
+    }
+  ],
+  "refresh": "30s",
+  "time": {"from": "now-6h", "to": "now"},
+  "version": 1
+}

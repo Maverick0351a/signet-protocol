@@ -1,0 +1,76 @@
+{
+  "schemaVersion": 39,
+  "title": "Signet Protocol Observability",
+  "timezone": "browser",
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Total Exchanges",
+      "datasource": "Prometheus",
+      "fieldConfig": {"defaults": {"unit": "none"}},
+      "targets": [{"expr": "sum(signet_exchanges_total)"}],
+      "gridPos": {"h": 4, "w": 4, "x": 0, "y": 0}
+    },
+    {
+      "type": "stat",
+      "title": "Denied (Last 5m)",
+      "datasource": "Prometheus",
+      "targets": [{"expr": "increase(signet_denied_total[5m])"}],
+      "gridPos": {"h": 4, "w": 4, "x": 4, "y": 0}
+    },
+    {
+      "type": "stat",
+      "title": "Fallback Used (5m)",
+      "datasource": "Prometheus",
+      "targets": [{"expr": "increase(signet_fallback_used_total[5m])"}],
+      "gridPos": {"h": 4, "w": 4, "x": 8, "y": 0}
+    },
+    {
+      "type": "graph",
+      "title": "Phase Latency (p95)",
+      "datasource": "Prometheus",
+      "targets": [{"expr": "histogram_quantile(0.95, sum by (le,phase)(rate(signet_exchange_phase_latency_seconds_bucket[5m])))"}],
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 4},
+      "lines": true
+    },
+    {
+      "type": "graph",
+      "title": "Total Latency (p95)",
+      "datasource": "Prometheus",
+      "targets": [{"expr": "histogram_quantile(0.95, sum by (le)(rate(signet_exchange_total_latency_seconds_bucket[5m])))"}],
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 4},
+      "lines": true
+    },
+    {
+      "type": "table",
+      "title": "Billing Enqueue Rate",
+      "datasource": "Prometheus",
+      "targets": [{"expr": "rate(signet_billing_enqueue_total[5m])"}],
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 12}
+    },
+    {
+      "type": "table",
+      "title": "Reserved Capacity (VEx/FU)",
+      "datasource": "Prometheus",
+      "targets": [
+        {"expr": "signet_reserved_vex_capacity"},
+        {"expr": "signet_reserved_fu_capacity"}
+      ],
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 12}
+    },
+    {
+      "type": "graph",
+      "title": "Repair Attempts vs Success",
+      "datasource": "Prometheus",
+      "targets": [
+        {"expr": "rate(signet_repair_attempts_total[5m])"},
+        {"expr": "rate(signet_repair_success_total[5m])"}
+      ],
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 12},
+      "lines": true
+    }
+  ],
+  "refresh": "30s",
+  "time": {"from": "now-6h", "to": "now"},
+  "version": 1
+}

@@ -243,6 +243,29 @@ signet_overage_charges_total{tenant,type,tier}
 
 OpenTelemetry spans are emitted per phase (e.g. exchange.phase.sanitize, exchange.phase.transform, exchange.phase.forward) and can be exported via OTLP by setting OTEL_EXPORTER_OTLP_ENDPOINT.
 
+### Dashboards
+
+Starter Grafana dashboards are under `monitoring/grafana/dashboards`:
+
+* `signet_observability.json` – Exchanges, denied & fallback usage, phase p95 latency, total latency, repairs, reserved capacity.
+* `signet_billing.json` – Verified Exchange units, FU tokens, billing enqueue rates, denied reason distribution, forward host distribution.
+
+Provision them by mounting the directory into Grafana and referencing the included `dashboard.yml` provider (already configured to scan the path).
+
+### Insomnia Plugin
+
+`tools/insomnia_plugin_signet.js` provides a template tag to verify receipts inline. Install by copying it into your Insomnia plugins folder, then use:
+
+`{{ signetVerify <receipt_json> <jwks_url> }}`
+
+Example JWKS URL: `http://localhost:8088/.well-known/jwks.json`
+
+### CI Test Badge
+
+Workflow `.github/workflows/test_badge.yml` generates `badges/tests-badge.svg` with pass/fail/skip counts. Add the badge near the top of this README:
+
+`![Tests](./badges/tests-badge.svg)`
+
 ## 🏢 Enterprise Features
 
 ### Reserved Capacity Billing
