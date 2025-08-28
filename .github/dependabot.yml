@@ -1,0 +1,31 @@
+version: 2
+updates:
+  - package-ecosystem: "pip"
+    directory: "/"  # root requirements
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    allow:
+      - dependency-type: "direct"
+    labels:
+      - "deps"
+      - "python"
+    ignore:
+      - dependency-name: "openai"
+        versions: [">=1.0.0"]  # defer major migration
+      - dependency-name: "opentelemetry-*"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: "npm"
+    directory: "/integrations/n8n"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
+    labels:
+      - "deps"
+      - "n8n"
+    ignore:
+      - dependency-name: "jest"
+        update-types: ["version-update:semver-major"]  # stay on 29 until upgrade review
+      - dependency-name: "@types/node"
+        versions: [">=21.0.0"]  # keep LTS alignment

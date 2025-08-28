@@ -15,6 +15,7 @@ The Signet Protocol establishes the **Trust Fabric** - providing cryptographic p
 | VS Code Extension (Signet Lens) | Published | Marketplace: https://marketplace.visualstudio.com/items?itemName=odinsecureai.signet-lens |
 | JavaScript Verification SDK (`signet-verify-js`) | Published | Package: signet-verify-js (npm) |
 | Python Verification SDK (`signet-verify`) | Published | Package: signet-verify (PyPI) |
+| n8n Community Node (`n8n-nodes-signet-protocol`) | Published | npm: n8n-nodes-signet-protocol |
 
 ### VS Code Extension (Signet Lens)
 Add in‑editor receipt chain verification, CID diffing, bundle export, and interactive chain visualization.
@@ -386,6 +387,21 @@ pytest tests/test_exchange.py -v        # End-to-end API
 ```
 
 ### CLI Tools
+### Dependency Pinning & Upgrade Policy
+Selective pinning is applied to balance stability and security:
+- OpenAI SDK pinned at 0.28.0 pending migration to the 1.x interface.
+- OpenTelemetry stack pinned at 1.25.0 (instrumentation 0.46b0) until coordinated upgrade (ensures span attribute compatibility).
+- FastAPI / Starlette / Pydantic held at tested versions; a future batch upgrade will advance them together.
+- Safe minor bumps (requests, python-dotenv, fastjsonschema, prometheus-client) applied proactively.
+Automated update PRs are generated weekly via Dependabot (pip + npm) with majors for sensitive packages ignored until manual review.
+
+### n8n Community Node
+Install the published community node to orchestrate Signet exchanges inside workflows:
+```bash
+npm install n8n-nodes-signet-protocol
+```
+Operations included: create exchange, get receipt chain, export bundle, billing dashboard, reload reserved capacity, create payment link. Configure the credential with your Signet base URL and API key.
+
 ```bash
 # Test mapping transformations
 python tools/signet_cli.py map test --mapping mapping.json --sample data.json
