@@ -1,0 +1,44 @@
+name: langchain-smoke
+
+on:
+  push:
+    paths:
+      - 'adapters/langchain/**'
+      - '.github/workflows/langchain_smoke.yml'
+  pull_request:
+    paths:
+      - 'adapters/langchain/**'
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Build signet-langchain
+        working-directory: adapters/langchain
+        run: |
+          python -m pip install --upgrade build
+          python -m build
+          ls -l dist
+
+      - name: Install wheel
+        run: |
+          python -m pip install adapters/langchain/dist/*.whl
+          python - <<'PY'
+import signet_langchain, json
+print('Imported signet_langchain version:', signet_langchain.__version__)
+# Basic symbol presence check
+for sym in ['SignetCallbackHandler','SignetRunnable','enable_signet_verification']:
+    assert hasattr(signet_langchain, sym), f"Missing {sym}"
+print('All symbols present')
+PY
+
+      - name: Smoke summary
+        run: echo "LangChain adapter build & import smoke test passed."
