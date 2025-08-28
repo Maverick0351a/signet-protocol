@@ -24,5 +24,10 @@ All notable changes to the Signet Lens extension will be documented here.
 - Updated publisher to `odinsecureai`.
 
 ## 1.0.0 - 2025-08-27
+# 1.0.4 - 2025-08-27
+### Changed
+- Removed axios & d3 dependencies; switched to native fetch + custom DOM shims.
+- Fully bundled output; VSIX size reduced to ~13 KB.
+
 ### Added
 - Initial release with receipt verification, chain visualization, CID export/diff, inline decorations.
