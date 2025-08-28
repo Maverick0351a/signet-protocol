@@ -1,6 +1,6 @@
 # 🔗 Signet Protocol - Trust Fabric for AI-to-AI Communications
 
-[![Tests](https://img.shields.io/badge/tests-52%20passed%20%7C%201%20skipped-brightgreen)](./tests/)
+![Tests](./badges/tests-badge.svg)
 [![Production Ready](https://img.shields.io/badge/status-production%20ready-green)](#deployment)
 [![Standard](https://img.shields.io/badge/standard-SR--1%20%7C%20SVX--1-blue)](#specifications)
 
@@ -95,23 +95,23 @@ result = verify_invoice("http://localhost:8088", "your-api-key", invoice_data)
 
 ## 📊 Current Status
 
-**🎉 100% Test Coverage - Production Ready!**
+**🎉 All Tests Passing (52 + 1 skipped) – Production Hardened Build**
 
 ```bash
 pytest tests/ -v
-# =============================== 52 passed, 1 skipped, 6 warnings in 7.6s ===============================
+# =============================== 52 passed, 1 skipped, 6 warnings in ~7.6s ===============================
 ```
 
 - ✅ **52 tests passing, 1 skipped**
 - ✅ **Server running** and healthy on port 8088
-- ✅ **All advanced features** implemented and verified
+- ✅ **Core + billing + observability features** implemented (see roadmap for upcoming refinements)
 - ✅ **Production deployment** ready with comprehensive guides
 
 ## 🛠️ Installation & Setup
 
 ### 1. Clone and Install
 ```bash
-git clone https://github.com/your-org/signet-protocol
+git clone https://github.com/Maverick0351a/signet-protocol
 cd signet-protocol
 pip install -r requirements.txt
 ```
@@ -135,6 +135,19 @@ uvicorn server.main:app --reload --port 8088
 
 # Production  
 uvicorn server.main:app --host 0.0.0.0 --port 8088 --workers 4
+
+### 3a. Run with Docker (optional)
+```bash
+docker build -t signet .
+docker run -p 8088:8088 \
+  -e SP_API_KEYS='{"demo_key":{"tenant":"acme","fallback_enabled":true}}' \
+  signet
+```
+
+### 3b. docker-compose (Prometheus + Grafana example)
+```bash
+docker compose up -d
+```
 ```
 
 ### 4. Verify Health
@@ -243,6 +256,14 @@ signet_overage_charges_total{tenant,type,tier}
 
 OpenTelemetry spans are emitted per phase (e.g. exchange.phase.sanitize, exchange.phase.transform, exchange.phase.forward) and can be exported via OTLP by setting OTEL_EXPORTER_OTLP_ENDPOINT.
 
+### Tracing (OpenTelemetry)
+Set these environment variables to export spans:
+```bash
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
+export OTEL_SERVICE_NAME=signet-protocol
+```
+If no endpoint is set a console exporter logs spans (development convenience).
+
 ### Dashboards
 
 Starter Grafana dashboards are under `monitoring/grafana/dashboards`:
@@ -259,6 +280,13 @@ Provision them by mounting the directory into Grafana and referencing the includ
 `{{ signetVerify <receipt_json> <jwks_url> }}`
 
 Example JWKS URL: `http://localhost:8088/.well-known/jwks.json`
+
+### Stripe MCP Integration
+
+Enhanced billing endpoints (product setup, payment links, dashboard) use a simulated MCP Stripe client. See `STRIPE_MCP_INTEGRATION_GUIDE.md` and run:
+```bash
+curl -X POST -H "X-SIGNET-API-Key: demo_key" http://localhost:8088/v1/billing/setup-products
+```
 
 ### CI Test Badge
 
@@ -347,7 +375,9 @@ uvicorn server.main:app --reload --port 8088
 
 ## 📄 License
 
-Apache License 2.0 - see [LICENSE](./LICENSE) file for details.
+Licensed under the Apache License, Version 2.0. See [LICENSE](./LICENSE).
+
+Software is provided "AS IS" without warranties; evaluate security & compliance against your own threat model before production use.
 
 ## 🔗 Links
 
