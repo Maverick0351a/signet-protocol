@@ -1,9 +1,5 @@
 # <div align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="./assets/LogoSignet.png">
-    <source media="(prefers-color-scheme: light)" srcset="./assets/LogoSignet-light.png, ./assets/LogoSignet.png 2x">
-    <img src="./assets/LogoSignet.png" alt="Signet Protocol Logo" width="360" />
-  </picture>
+  <img src="./assets/LogoSignet.png" alt="Signet Protocol Logo" width="360" />
 </div>
 
 # Signet Protocol
@@ -13,21 +9,6 @@ Secure, verifiable, auditable AI-to-AI exchanges ("Trust Fabric"). Signet issues
 ![Tests](./badges/tests-badge.svg) [![Status](https://img.shields.io/badge/status-production-green)](#quick-start) [![Spec](https://img.shields.io/badge/spec-v1.0.0-blue)](./docs/api/openapi-v1.0.0.yaml)
 
 > ⭐ If this helps you build safer AI systems, please **Star** the repo — it signals demand and unlocks more OSS investment.
-
----
-## Demo (15s)
-> Terminal screencast: health check → exchange → export bundle.
-
-<p align="center">
-  <em>(Recording placeholder – generate with VHS)</em><br/>
-  <img src="./assets/demo/signet-demo.gif" alt="Signet demo" width="720" />
-</p>
-
-Generate locally (requires https://github.com/charmbracelet/vhs):
-```bash
-vhs assets/demo/signet-demo.tape
-```
-Result saves to `assets/demo/signet-demo.gif` – commit & push to display above.
 
 ---
 ## Why Signet?

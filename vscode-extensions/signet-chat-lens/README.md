@@ -17,7 +17,7 @@ npm install
 ```bash
 npm run compile
 ```
-3. Press F5 to launch the extension host.
+3. Press F5 (Run Signet Chat + Lens) – launch config auto-builds.
 
 ## Commands
 | Command | Purpose |
@@ -42,6 +42,7 @@ API key stored only in SecretStorage (encrypted on disk). No receipt content lea
 * CID recompute inside lens
 * Entitlement (tier) indicator via `/v1/entitlements`
 * Billing usage gauge (`/v1/billing/dashboard`)
+* Offline signature & CID verification in webview (no server)
 
 ## License
 Apache 2.0

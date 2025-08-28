@@ -54,6 +54,10 @@
         { "id": "signetChatView", "name": "Signet Chat", "icon": "media/icon.png" }
       ]
     }
+    ,
+    "viewsWelcome": [
+      { "view": "signetChatView", "contents": "Welcome to Signet Chat + Lens!\n\n[Configure API](command:signet.configureApi) • [Open Chat](command:signet.openChat) • [Open Lens](command:signet.openLens)" }
+    ]
   },
   "scripts": {
     "compile": "esbuild src/extension.ts --bundle --platform=node --format=cjs --outfile=dist/extension.js",

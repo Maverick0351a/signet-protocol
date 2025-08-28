@@ -15,10 +15,13 @@ class ChatTreeProvider implements vscode.TreeDataProvider<vscode.TreeItem> {
   refresh() { this._onDidChangeTreeData.fire(); }
   getTreeItem(el: vscode.TreeItem) { return el; }
   getChildren(): vscode.ProviderResult<vscode.TreeItem[]> {
-    return [
-      new vscode.TreeItem('Open Chat', vscode.TreeItemCollapsibleState.None),
-      new vscode.TreeItem('Open Lens', vscode.TreeItemCollapsibleState.None)
-    ];
+    const chat = new vscode.TreeItem('Open Chat');
+    chat.command = { command: 'signet.openChat', title: 'Open Chat' };
+    const lens = new vscode.TreeItem('Open Lens');
+    lens.command = { command: 'signet.openLens', title: 'Open Lens' };
+    const cfg = new vscode.TreeItem('Configure API & Key');
+    cfg.command = { command: 'signet.configureApi', title: 'Configure API' };
+    return [chat, lens, cfg];
   }
 }
 
@@ -137,6 +140,7 @@ async function addAgentDescriptor() {
 export function activate(context: vscode.ExtensionContext) {
   const tree = new ChatTreeProvider();
   vscode.window.registerTreeDataProvider('signetChatView', tree);
+  console.log('[signet-chat-lens] activating');
   context.subscriptions.push(
     vscode.commands.registerCommand('signet.openChat', () => openChat(context)),
     vscode.commands.registerCommand('signet.openLens', () => openLens(context)),
