@@ -1,0 +1,44 @@
+name: Publish VS Code Extension
+
+on:
+  push:
+    tags:
+      - "vscode-extension-v*"
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install deps
+        working-directory: vscode-extension
+        run: npm ci --no-audit --no-fund
+
+      - name: Compile
+        working-directory: vscode-extension
+        run: npm run compile
+
+      - name: Package (sanity)
+        working-directory: vscode-extension
+        run: npx vsce package --no-yarn
+
+      - name: Publish to Marketplace
+        working-directory: vscode-extension
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: npx vsce publish --pat $VSCE_PAT
+
+      - name: Upload VSIX artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: signet-lens-vsix
+          path: vscode-extension/*.vsix
