@@ -1,4 +1,10 @@
-# <div align="center"><img src="./assets/LogoSignet.png" alt="Signet Protocol Logo" width="420" /></div>
+# <div align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./assets/LogoSignet.png">
+    <source media="(prefers-color-scheme: light)" srcset="./assets/LogoSignet.png">
+    <img src="./assets/LogoSignet.png" alt="Signet Protocol Logo" width="420" />
+  </picture>
+</div>
 
 # 🔗 Signet Protocol - Trust Fabric for AI-to-AI Communications
 

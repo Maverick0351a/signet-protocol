@@ -1,3 +1,5 @@
+# <div align="center"><img src="../assets/LogoSignet.png" alt="Signet Protocol Logo" width="360" /></div>
+
 # Signet Lens VS Code Extension
 
 ![Marketplace Version](https://img.shields.io/visual-studio-marketplace/v/odinsecureai.signet-lens)
@@ -21,6 +23,9 @@ Visualize and verify Signet Protocol receipt chains directly inside VS Code with
 ```
 <preview pending>
 ```
+
+## Branding
+The Signet logo above is included from the parent repository `assets/LogoSignet.png`. Use a 128x128 cropped/transparent variant for the marketplace `icon.png` if higher clarity is needed. Replace `icon.png` and bump the extension version to publish the new branding.
 
 ## Commands ("Signet Lens" prefix)
 * Verify Receipt Chain
