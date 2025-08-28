@@ -1,3 +1,5 @@
+# <div align="center"><img src="../assets/LogoSignet.png" alt="Signet Protocol Logo" width="300" /></div>
+
 # Generated API Clients
 
 This directory hosts (or receives) generated clients from the frozen OpenAPI specs under `docs/api/`.

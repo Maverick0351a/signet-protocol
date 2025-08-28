@@ -1,3 +1,5 @@
+# <div align="center"><img src="./assets/LogoSignet.png" alt="Signet Protocol Logo" width="420" /></div>
+
 # 🔗 Signet Protocol - Trust Fabric for AI-to-AI Communications
 
 ![Tests](./badges/tests-badge.svg)

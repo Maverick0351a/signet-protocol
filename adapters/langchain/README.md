@@ -1,3 +1,5 @@
+# <div align="center"><img src="../../assets/LogoSignet.png" alt="Signet Protocol Logo" width="320" /></div>
+
 # signet-langchain
 
 LangChain integration for the **Signet Protocol** – enabling cryptographically verified AI-to-AI exchanges with receipt chains and exportable signed bundles.
