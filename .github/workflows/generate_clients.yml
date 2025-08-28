@@ -1,0 +1,68 @@
+name: generate-clients
+
+on:
+  workflow_dispatch:
+    inputs:
+      spec_version:
+        description: "Spec version (e.g. 1.0.0)"
+        required: true
+  push:
+    paths:
+      - 'docs/api/openapi-*.yaml'
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Determine spec path
+        id: spec
+        run: |
+          if [ -n "${{ github.event.inputs.spec_version }}" ]; then
+            V="${{ github.event.inputs.spec_version }}"
+          else
+            # Grab the newest versioned spec lexicographically
+            V=$(ls docs/api/openapi-*.yaml | sed -E 's/.*openapi-([0-9.]+)\.yaml/\1/' | sort -V | tail -1)
+          fi
+          SPEC="docs/api/openapi-${V}.yaml"
+          if [ ! -f "$SPEC" ]; then echo "Spec $SPEC not found"; exit 1; fi
+          echo "spec=$SPEC" >> $GITHUB_OUTPUT
+          echo "version=$V" >> $GITHUB_OUTPUT
+
+      - name: Install OpenAPI Generator CLI
+        run: |
+          curl -L https://repo1.maven.org/maven2/org/openapitools/openapi-generator-cli/7.7.0/openapi-generator-cli-7.7.0.jar -o openapi-generator-cli.jar
+
+      - name: Generate Python client
+        run: |
+          java -jar openapi-generator-cli.jar generate \
+            -i ${{ steps.spec.outputs.spec }} \
+            -g python \
+            -o clients/python \
+            --additional-properties=packageName=signet_protocol_client,packageVersion=${{ steps.spec.outputs.version }}
+
+      - name: Generate TypeScript client
+        run: |
+          java -jar openapi-generator-cli.jar generate \
+            -i ${{ steps.spec.outputs.spec }} \
+            -g typescript-fetch \
+            -o clients/typescript \
+            --additional-properties=npmName=signet-protocol-client,npmVersion=${{ steps.spec.outputs.version }}
+
+      - name: Archive clients
+        run: |
+          tar -czf python-client.tar.gz -C clients python
+          tar -czf typescript-client.tar.gz -C clients typescript
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: signet-clients-${{ steps.spec.outputs.version }}
+          path: |
+            python-client.tar.gz
+            typescript-client.tar.gz
+
+      - name: Summary
+        run: echo "Generated clients for spec version ${{ steps.spec.outputs.version }}"

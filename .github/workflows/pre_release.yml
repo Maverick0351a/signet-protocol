@@ -1,0 +1,41 @@
+name: pre-release-validation
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Proposed tag (e.g. v1.0.1 or signet-langchain-v0.1.1)"
+        required: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install deps (minimal)
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then python -m pip install -r requirements.txt; fi
+          python -m pip install ruff==0.5.6
+
+      - name: Run pre-release checks
+        env:
+          PROPOSED_TAG: ${{ github.event.inputs.tag }}
+        run: |
+          python scripts/pre_release_check.py --tag "$PROPOSED_TAG"
+
+      - name: Lint
+        run: ruff check .
+
+      - name: Tests
+        run: pytest -q || (echo "::error::Tests failed" && exit 1)
+
+      - name: Summary
+        run: echo "Pre-release validation succeeded for ${{ github.event.inputs.tag }}"
