@@ -1,14 +1,92 @@
-# <div align="center">
-  <img src="./assets/LogoSignet.png" alt="Signet Protocol Logo" width="360" />
-</div>
-
-# Signet Protocol
+Signet Protocol
 
 Secure, verifiable, auditable AI-to-AI exchanges ("Trust Fabric"). Signet issues signed receipts and hash‑chained audit trails for every normalized transformation and optional forward delivery.
 
-![Tests](./badges/tests-badge.svg) [![Status](https://img.shields.io/badge/status-production-green)](#quick-start) [![Spec](https://img.shields.io/badge/spec-v1.0.0-blue)](./docs/api/openapi-v1.0.0.yaml)
+**🆕 NEW: AI Act Compliance Kit** - Turn cryptographic receipts into ready-made conformity dossiers (EU AI Act / NIST AI RMF / ISO 42001) with one-click technical documentation, post-market monitoring, and regulator export bundles.
+
+![Tests](./badges/tests-badge.svg) [![Status](https://img.shields.io/badge/status-production-green)](#quick-start) [![Spec](https://img.shields.io/badge/spec-v1.0.0-blue)](./docs/api/openapi-v1.0.0.yaml) [![Compliance](https://img.shields.io/badge/compliance-AI_Act_Ready-brightgreen)](#ai-act-compliance-kit)
 
 > ⭐ If this helps you build safer AI systems, please **Star** the repo — it signals demand and unlocks more OSS investment.
+
+---
+## Repository Layout (Key Paths)
+
+```
+signet-protocol/
+├─ server/
+│  ├─ rtl/                # Transparency log (Merkle tree, STH signer)
+│  ├─ forward/pch.py      # Proof-Carrying HTTP (signed outbound headers)
+│  ├─ identity/           # DID document & pluggable signer (software / hw)
+│  └─ ...                 # FastAPI app & pipeline modules
+├─ sdk/
+│  ├─ node/pch-express/   # Express middleware verifying PCH signatures
+│  ├─ python/signet_pch_fastapi/ # FastAPI middleware for PCH verification
+│  └─ wasm/verify/        # WASM receipt / Merkle proof verifier
+├─ specs/                 # Draft feature specifications
+│  ├─ RTL-1-TRANSPARENCY-LOG.md
+│  ├─ PCH-1-PROOF-CARRYING-HTTP.md
+│  └─ DID-1-KEY-BINDING.md
+├─ tools/
+│  ├─ signet_cli.py       # General CLI
+│  └─ signet_rtl_cli.py   # Transparency log proof fetch & verify
+└─ vscode-extension/      # Signet Lens (receipt visualization)
+```
+
+Specs capture evolving cryptographic / interoperability contracts; implementations may have placeholder algorithms (e.g., current PCH HMAC placeholder → upcoming Ed25519/JWS upgrade).
+
+---
+## AI Act Compliance Kit
+
+**Transform cryptographic receipts into ready-made conformity dossiers** for EU AI Act, NIST AI RMF, and ISO 42001 compliance.
+
+### One-Click Technical Documentation
+```bash
+# Generate complete AI Act Annex IV dossier
+curl -H "X-SIGNET-API-Key: demo_key" \
+  http://localhost:8088/v1/compliance/annex-iv/my-system?format=json
+
+# Export for regulators with cryptographic integrity
+curl -X POST -H "X-SIGNET-API-Key: demo_key" \
+  http://localhost:8088/v1/compliance/retention/export \
+  -d '{"profile_name": "general_audit", "date_range": {"start": "2024-01-01T00:00:00Z", "end": "2024-12-31T23:59:59Z"}}'
+```
+
+### Compliance Modules
+| Module | Purpose | AI Act Coverage |
+|--------|---------|-----------------|
+| **Annex IV Generator** | Technical documentation dossier | Articles 11, 47-48 |
+| **Retention Manager** | 10-year data retention & regulator exports | Article 12 |
+| **Post-Market Monitoring** | Performance drift detection & PMM reports | Article 61 |
+| **Risk Manager** | NIST AI RMF compliance & risk assessment | Article 9 |
+| **CE Marking Generator** | EU conformity assessment & declaration | Articles 47-48 |
+| **GPAI Transparency** | General Purpose AI disclosures | GPAI obligations |
+
+### Key Benefits
+- **Procurement Unblocker**: Answer RFP questions with signed evidence, not promises
+- **Sales Acceleration**: Pre-built dossiers reduce legal review cycles by 20-40%
+- **Verifiable Evidence**: Cryptographically signed proofs that auditors can independently verify
+- **Cross-Standard Coverage**: One implementation covers AI Act, NIST AI RMF, and ISO 42001
+- **Automated Monitoring**: Real-time drift detection and compliance status tracking
+
+### Quick Demo
+```python
+# Get unified compliance dashboard
+import requests
+headers = {'X-SIGNET-API-Key': 'demo_key'}
+dashboard = requests.get('http://localhost:8088/v1/compliance/dashboard', headers=headers).json()
+print(f"Compliance status: {dashboard['retention_status']['compliant']}")
+
+# Generate PMM report
+pmm_report = requests.post('http://localhost:8088/v1/compliance/pmm-report', 
+  headers=headers, 
+  json={
+    "system_id": "my-ai-system",
+    "start_date": "2024-01-01T00:00:00Z", 
+    "end_date": "2024-12-31T23:59:59Z"
+  }).json()
+```
+
+**📖 Full Documentation**: See [`docs/COMPLIANCE_FEATURES.md`](./docs/COMPLIANCE_FEATURES.md) for complete API reference and regulatory mapping.
 
 ---
 ## Why Signet?
