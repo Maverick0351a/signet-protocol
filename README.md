@@ -88,6 +88,19 @@ pmm_report = requests.post('http://localhost:8088/v1/compliance/pmm-report',
 
 **📖 Full Documentation**: See [`docs/COMPLIANCE_FEATURES.md`](./docs/COMPLIANCE_FEATURES.md) for complete API reference and regulatory mapping.
 
+### Safeguards & Hardening
+> The Compliance Kit provides cryptographically verifiable evidence & controls — not legal advice and not, by itself, a conformity assessment or CE mark.
+
+- **Default Redaction Policy**: Non‑admin tokens automatically receive redacted export bundles (HardeningDefault = ON). Sensitive fields are zeroed / masked prior to serialization.
+- **Tamper‑Evidence**: Every export includes a manifest (SHA‑256 hashes) for each file plus the ordered list of receipt CIDs; recomputation must match or verification fails.
+- **Time‑Bound Proofs**: Export response headers include `Date` and `X-Signet-Valid-For: <duration>` (e.g. 7d). Re-verifiers MUST reject proofs presented outside the validity window unless re-fetched.
+- **Scoped Access Control**: All `/v1/compliance/*` read endpoints require the `compliance.read` scope. Mutation / configuration endpoints are restricted to admin tokens (`admin=true`, `scope: compliance.write`).
+- **Lightweight PII Heuristics**: Payload scanning (regex + entropy + format checks) flags potential residual PII that escaped redaction; flagged fields are annotated in the dossier and surfaced via the dashboard.
+- **Performance Target**: Dossier generation is parallelized (I/O + hash verification) with a target p95 < **8s** for a 30‑day window (baseline: ~N receipts) to keep CI / audit pipelines fast.
+- **Defense in Depth**: Signed receipts + Merkle linkage + hash manifest prevent silent mutation; scope gating + default redaction constrain blast radius of key leakage.
+
+Planned hardening extensions: hardware-backed signer attestation, structured differential privacy summaries for monitored metrics, configurable PII classifier model upgrade path.
+
 ---
 ## Why Signet?
 | Problem Without Signet | With Signet |
