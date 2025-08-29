@@ -1,6 +1,9 @@
-Signet Protocol
+<div align="center">
+  <img src="./assets/LogoSignet.png" alt="Signet Protocol Logo" width="360" />
+  <h1>Signet Protocol</h1>
+  <p><strong>Secure, verifiable, auditable AI-to-AI exchanges ("Trust Fabric").</strong><br/>Signed receipts & hash‑chained audit trails for every normalized transformation and optional forward delivery.</p>
+</div>
 
-Secure, verifiable, auditable AI-to-AI exchanges ("Trust Fabric"). Signet issues signed receipts and hash‑chained audit trails for every normalized transformation and optional forward delivery.
 
 **🆕 NEW: AI Act Compliance Kit** - Turn cryptographic receipts into ready-made conformity dossiers (EU AI Act / NIST AI RMF / ISO 42001) with one-click technical documentation, post-market monitoring, and regulator export bundles.
 
@@ -102,6 +105,24 @@ pmm_report = requests.post('http://localhost:8088/v1/compliance/pmm-report',
 Planned hardening extensions: hardware-backed signer attestation, structured differential privacy summaries for monitored metrics, configurable PII classifier model upgrade path.
 
 ---
+## Pull Quotes
+
+> “The AI Act Compliance Kit is the killer feature—signed evidence, not promises.”  
+> — Independent technical review
+
+> “Cryptography‑first design: hash‑chained, signed receipts with deterministic canonicalization.”  
+> — Independent technical review
+
+> “Proof‑Carrying HTTP lets trust propagate across service boundaries.”  
+> — Independent technical review
+
+> “Transparency Log (RTL) provides a tamper‑proof record of exchanges, CT‑style.”  
+> — Independent technical review
+
+> “VS Code Signet Lens turns audits into a click: visualize and verify chain integrity.”  
+> — Independent technical review
+
+---
 ## Why Signet?
 | Problem Without Signet | With Signet |
 |------------------------|-------------|
@@ -124,36 +145,7 @@ Planned hardening extensions: hardware-backed signer attestation, structured dif
 | Failure & drift analysis | Compare historical, signed normalized outputs over time |
 
 ---
-## 30‑Second Tour
-```mermaid
-flowchart LR
-A[Raw AI Tool Output] --> N[Normalize & Canonicalize]\n(schema + invariants)
-N --> R[Signed Receipt]\n(Ed25519)
-R --> C[Chain Storage]\n(Hash link)
-R -->|optional forward| F[Webhook / Downstream]
-C --> E[Export Bundle]\n(Forensics / Billing)
-```
-
-```python
-# 1. Submit exchange
-res = requests.post('/v1/exchange', json=payload, headers=auth)
-receipt = res.json()['receipt']
-
-# 2. Export later
-bundle = requests.post('/v1/export/bundle', json={'trace_id': res.json()['trace_id']}, headers=auth).json()
-
-# 3. Offline verify
-from signet_verify import verify_receipt
-all_ok = all(verify_receipt(r)[0] for r in bundle['receipts'])
-```
-
-```js
-// Browser / Node receipt verification
-import { verifyReceipt } from 'signet-verify-js';
-const { valid } = verifyReceipt(receipt); // true if signature & hash chain hold
-```
-
----
+##
 ## Extended Examples
 ### A. End-to-End (Python)
 ```python
