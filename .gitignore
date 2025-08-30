@@ -1,3 +1,8 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
 # Python
 __pycache__/
 *.py[cod]
@@ -16,6 +21,7 @@ parts/
 sdist/
 var/
 wheels/
+share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
@@ -30,8 +36,12 @@ ENV/
 env.bak/
 venv.bak/
 
-# IDE
-.vscode/
+# IDEs
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
 .idea/
 *.swp
 *.swo
@@ -46,117 +56,84 @@ venv.bak/
 ehthumbs.db
 Thumbs.db
 
+# Build outputs
+dist/
+build/
+out/
+.next/
+.turbo/
+.nuxt/
+.output/
+.vercel/
+
+# Test coverage
+coverage/
+*.lcov
+.nyc_output/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Cache directories
+.npm/
+.eslintcache
+.parcel-cache/
+.cache/
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+
+# Python cache
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Rust
+target/
+Cargo.lock
+
 # Database
 *.db
 *.sqlite
 *.sqlite3
-data/
 
-# Logs
-*.log
-logs/
+# Temporary files
+*.tmp
+*.temp
+.tmp/
+.temp/
 
-# Secrets and config
-.env.local
-.env.production.local
-*.pem
-*.key
-*.crt
-
-# Testing
-.coverage
-.pytest_cache/
-.tox/
-.nox/
-coverage.xml
-*.cover
-.hypothesis/
-
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# pyenv
-.python-version
-
-# Celery
-celerybeat-schedule
-celerybeat.pid
-
-# SageMath parsed files
-*.sage.py
-
-# Environments
-.env
+# Environment variables
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
 
-# mypy
-.mypy_cache/
-.dmypy.json
-dmypy.json
-
-# Pyre type checker
-.pyre/
-
-# Node.js (for any future JS tooling)
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+# Package manager lockfiles (keep pnpm-lock.yaml)
 package-lock.json
-vscode-extensions/signet-chat-lens/dist/
+yarn.lock
 
-# Build / distribution artifacts (extension, generated bundles)
-vscode-extension/*.vsix
-vscode-extension/out/
+# VS Code extension build
+*.vsix
 
-# n8n integration build & test artifacts
-integrations/n8n/dist/
-integrations/n8n/package-lock.json
-integrations/n8n/ruff_*.txt
-integrations/n8n/credentials/assets
-integrations/n8n/test/
+# Monitoring and artifacts
+artifacts/
+*.trace
 
-# Generated temporary docs
-_tmp_metrics.md
-
-# Docker
-.dockerignore
-
-# Temporary files
-*.tmp
-*.temp
-.cache/
-
-# Production secrets (keep templates)
-.env.production.real
-reserved_production.real.json
-
-# Files with Stripe API keys (detected by GitHub push protection)
-STRIPE_PRODUCTS_SETUP_COMPLETE.md
-debug_server.py
-test_billing_direct.py
-test_billing_integration.py
-test_server_config.py
-setup_stripe_products.js
-stripe_mcp_demo.js
-test_stripe_mcp.js
-
-# VS Code extension build/test artifacts (avoid committing Electron test bundle)
-vscode-extensions/**/.vscode-test/
-vscode-extensions/**/dist/
-vscode-extensions/**/*.vsix
-vscode-extension/out/
-vscode-extension/*.vsix
-
-# Additional binary / large artifacts
-*.bin
-*.dll
-*.exe
-*.wasm
-*.asar
-
-# Source maps (avoid bloating repo if generated)
-*.js.map
+# Local development
+.local/
